@@ -1,0 +1,12 @@
+New features:
+    + Demo mode: activates when there is no connection at the start moment
+    + Saving PID configuration in MCU's EEPROM
+    + Input new IP/PORT, save them on PC under any OS (by QSettings)
+
+Changes:
+    ~ When connection with MCU lost MessageWindow appears only once: after that there is only statusbar message
+    ~ Graphics moved in module 'miscgraphics' (refresh PicButton, matplotlib Graph, MessageWindow)
+    ~ MCUconn module renamed to 'mcuconn', nice improvements in architecture, 'connection lost' handling, new functions
+    ~ Improvements in main module architecture (FormWidget class is now a part of MainWindow class; import only used names)
+    ~ Variables and functions names refactoring
+    ~ Other nice small changes
