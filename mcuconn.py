@@ -132,4 +132,6 @@ class MCUconn():
             data, addr = self.sock.recvfrom(128)
         except socket.timeout:
             return 1
+        except OSError:
+            return 1
         return 0

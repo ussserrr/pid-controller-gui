@@ -3,6 +3,8 @@ if __name__ == '__main__':
     __version__ = 'zeta'
 
 import sys
+# import os
+# os.environ['QT_API'] = 'pyqt5'
 from numpy import mean as numpy_mean, __version__ as numpy___version__
 from time import time as time_time
 from matplotlib import __version__ as matplotlib___version__
@@ -13,9 +15,13 @@ from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGr
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import QTimer, QCoreApplication, QSettings, Qt, QT_VERSION_STR
 from PyQt5.Qt import PYQT_VERSION_STR
+import qdarkstyle
 
 from miscgraphics import PicButton, MessageWindow, Graph
 from mcuconn import MCUconn
+
+# import numpy as np
+# import pyqtgraph
 
 
 
@@ -210,6 +216,11 @@ class MainWindow(QMainWindow):
             # QToolTip.setFont(QFont('SansSerif', 10))
             # self.setToolTip('This is a <b>QWidget</b> widget')
 
+            # p = self.palette()
+            # p.setColor(self.backgroundRole(), Qt.black)
+            # self.setAutoFillBackground(True)
+            # self.setPalette(p)
+
             # Group for read/write PID setpoint
             self.setpointReadLabel = QLabel("Current setpoint, V: <b>{0:.3f}</b>".format(tivaConn.read('setpoint')[0]))
             setpointRefreshButton = PicButton(QPixmap("img/refresh.png"), QPixmap("img/refresh_hover.png"), QPixmap("img/refresh_pressed.png"))
@@ -346,8 +357,9 @@ class MainWindow(QMainWindow):
 
 
             self.uGraph = Graph(xlabel='Time, seconds', ylabel='Voltage, Volts', auto_ylim=False, ymin=0, ymax=3.3)
+            # self.uGraph = pyqtgraph.GraphicsLayoutWidget()
+            # self.p1 = self.uGraph.addPlot(title="Basic array plotting", y=np.random.normal(size=100))
             self.pidGraph = Graph(ylabel='PID-output')
-
 
             self.plotProgressBar = QProgressBar()
             self.Parent.statusBar().addPermanentWidget(self.plotProgressBar)
@@ -386,8 +398,8 @@ class MainWindow(QMainWindow):
             self.grid.addLayout(avrgPIDBox, 6, 0)
 
 
-            self.uGraphToolbar = self.uGraph.getGraphToolbar()
-            self.pidGraphToolbar = self.pidGraph.getGraphToolbar()
+            self.uGraphToolbar = self.uGraph.graphToolbar
+            self.pidGraphToolbar = self.pidGraph.graphToolbar
 
             self.plotBox = QVBoxLayout()
             self.plotBox.addWidget(self.uGraph)
@@ -562,6 +574,10 @@ class MainWindow(QMainWindow):
         toolbar.addAction(infoAction)
         toolbar.addAction(settingsAction)
 
+        # toolbar1 = self.addToolBar('1')
+        # toolbar1.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        # toolbar1.addAction(exitAction)
+
         # menubar = self.menuBar()
         mainMenu = self.menuBar().addMenu('&Menu')
         mainMenu.addAction(exitAction)
@@ -631,7 +647,8 @@ if __name__ == '__main__':
           "This pair will be the new default.".format(IP, PORT))
     while (True):
         try:
-            input_str = input("Input here: ")
+            # input_str = input("Input here: ")
+            input_str = ''
             if input_str != '':
                 IP = input_str[:input_str.index('/')]
                 PORT = int(input_str[input_str.index('/')+1:])
@@ -651,6 +668,7 @@ if __name__ == '__main__':
 
 
     app = QApplication(sys.argv)
+    # TODO: give it a name! (now is just "Python")
 
     tivaConn = MCUconn(IP, PORT)
     # widget for showing in statusbar when connection lost
@@ -660,8 +678,8 @@ if __name__ == '__main__':
         tivaConn.OFFLINE_MODE = True
         DEMO_MODE = True
         print("\nDemo mode entered")
-        MessageWindow(text="Due to no connection to regulator the application will start in Demo mode. All values are random. "\
-                           "To exit Demo mode please restart application.")
+        # MessageWindow(text="Due to no connection to regulator the application will start in Demo mode. All values are random. "\
+        #                    "To exit Demo mode please restart application.")
     else:
         # if connection is present and no demo mode then create timer for connection checking
         checkConnectionTimer = QTimer()
@@ -673,6 +691,7 @@ if __name__ == '__main__':
     tivaConn.saveCurrentValues()
 
     mainWindow = MainWindow()
+    app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
     mainWindow.show()
 
     print('\nloaded.\n')
