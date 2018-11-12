@@ -1,17 +1,10 @@
-from PyQt5.QtGui import QPixmap, QPainter, QIcon
-from PyQt5.QtWidgets import QMessageBox, QHBoxLayout, QWidget, QAbstractButton, QSizePolicy, QApplication, QLabel, QGridLayout
-from PyQt5.QtCore import QSize, QTimer, QThread, QObject, QEvent, QEventLoop, QCoreApplication
+from PyQt5.QtGui import QPainter, QIcon
+from PyQt5.QtWidgets import QMessageBox, QAbstractButton
+from PyQt5.QtCore import QSize, QTimer
 
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas,\
-                                               NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
-from matplotlib import rcParams
-import matplotlib.pyplot as plt
-plt.style.use('dark_background')
-
-import matplotlib.animation as animation
 import numpy as np
-# import multiprocessing as mp
+
+import pyqtgraph
 
 
 
@@ -107,115 +100,115 @@ class MessageWindow(QMessageBox):
         self.exec_()
 
 
-class CustomFigureCanvas(FigureCanvas):
-    """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
 
-    def __init__(self, parent=None, width=5, height=3, dpi=100, xlabel='', ylabel='',
-                 ymin=0, ymax=0, auto_ylim=True, Xarray=[], Yarray=[]):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
-        fig.patch.set_alpha(0)
-        rcParams.update({"font.size": 8})
-
-        self.compute_initial_figure()
-
-        FigureCanvas.__init__(self, fig)
-        self.setParent(parent)
-
-        FigureCanvas.setSizePolicy(self,
-                                   QSizePolicy.Expanding,
-                                   QSizePolicy.Expanding)
-        FigureCanvas.updateGeometry(self)
-
-        self.axes.grid(color='gray', linestyle=':')
-        self.axes.set_ylabel(ylabel)
-        self.axes.set_xlabel(xlabel)
-        self.axes.xaxis.set_label_position('top')
-        self.axes.yaxis.set_label_position('right')
-
-        self.canvas = FigureCanvas(fig)
-        self.graphToolbar = NavigationToolbar(self.canvas, self)
-
-    def compute_initial_figure(self):
-        pass
-
-    def getGraphToolbar(self):
-        return self.graphToolbar
-
-
-N = 100
-class Graph(CustomFigureCanvas):
-
-    # """
-    # Graph class for embedding in PyQt5 apps.
-    #
-    # Usage example:
-    #
-    #     if __name__ == '__main__':    #
-    #         app = QApplication(sys.argv)
-    #         mygraph = Graph()
-    #         window = QWidget()
-    #         layout = QHBoxLayout(window)
-    #         layout.addWidget(mygraph)
-    #         window.show()
-    #         sys.exit(app.exec_())
-    #
-    # """
-
-    def __init__(self, *args, **kwargs):
-        CustomFigureCanvas.__init__(self, *args, **kwargs)
-        timer = QTimer(self)
-        timer.timeout.connect(self.update_figure)
-        timer.start(75)
-
-    def compute_initial_figure(self):
-        self.x = np.arange(0, N, 1)
-        self.y = 4.5 + np.random.rand(N)
-        self.line = self.axes.plot(self.x, self.y)[0]
-        self.axes.set_ylim([0.0, 10.0])
-
-    def update_figure(self):
-        self.y = np.append(self.y[1:], 4.5+np.random.rand())
-        self.line.set_ydata(self.y)
-        self.draw()
+# class CustomLayoutWidget(pyqtgraph.LayoutWidget):
+#     """
+#
+#     """
+#
+#     def __init__(self, nPoints=200, procVarRange=(0.0, 1.0), contOutRange=(0.0, 1.0), interval=17, start=False):
+#         super(CustomLayoutWidget, self).__init__()
+#
+#         self.nPoints = nPoints
+#         self.interval = interval
+#
+#         self.run = False
+#
+#         self.timeAxes = np.linspace(-nPoints*interval, 0, nPoints)
+#
+#         self.procVarGraph = pyqtgraph.PlotWidget(y=np.zeros([self.nPoints]), labels={'right': "Process Variable"})
+#         self.procVarGraph.plotItem.setRange(yRange=procVarRange)
+#         self.addWidget(self.procVarGraph)
+#         self.nextRow()
+#         self.averLabel = pyqtgraph.ValueLabel(averageTime=nPoints*interval)
+#         self.addWidget(self.averLabel)
+#         self.nextRow()
+#         self.contOutGraph = pyqtgraph.PlotWidget(y=np.zeros([self.nPoints]), labels={'right': "Controller Output", 'bottom': "Time, ms"})
+#         self.contOutGraph.plotItem.setRange(yRange=contOutRange)
+#         self.addWidget(self.contOutGraph)
+#
+#         self.updateTimer = QTimer()
+#         self.updateTimer.timeout.connect(self.update_graphs)
+#         if start:
+#             self.start_live_graphs()
+#
+#     def start_live_graphs(self):
+#         self.run = True
+#         self.updateTimer.start(self.interval)
+#
+#     def pause_live_graphs(self):
+#         self.run = False
+#         self.updateTimer.stop()
+#
+#     def toggle_live_graphs(self):
+#         if self.run:
+#             self.pause_live_graphs()
+#         else:
+#             self.start_live_graphs()
+#
+#     def update_graphs(self):
+#         self.averLabel.setValue(4.5 + np.random.rand())
+#         procVarData = np.roll(self.procVarGraph.plotItem.curves[0].getData()[1], -1)
+#         procVarData[-1] = 4.5 + np.random.rand()
+#         contOutData = np.roll(self.contOutGraph.plotItem.curves[0].getData()[1], -1)
+#         contOutData[-1] = 4.5 + np.random.rand()
+#         self.procVarGraph.plotItem.curves[0].setData(self.timeAxes, procVarData)
+#         self.contOutGraph.plotItem.curves[0].setData(self.timeAxes, contOutData)
 
 
-    # def __init__(self, parent=None, width=5, height=3, dpi=100, xlabel='', ylabel='',
-    #              ymin=0, ymax=0, auto_ylim=True, Xarray=[], Yarray=[]):
-    #
-    #     fig = Figure(figsize=(width, height), dpi=dpi)
-    #     axes = fig.add_subplot(111)
-    #
-    #     FigureCanvas.__init__(self, fig)
-    #     # FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
-    #     # FigureCanvas.updateGeometry(self)
-    #
-    #     fig.patch.set_alpha(0)
-    #     rcParams.update({"font.size": 8})
-    #     axes.grid(color='gray', linestyle=':')
-    #     axes.set_ylabel(ylabel)
-    #     axes.set_xlabel(xlabel)
-    #     axes.xaxis.set_label_position('top')
-    #     axes.yaxis.set_label_position('right')
-    #     # if not auto_ylim:
-    #     axes.set_ylim([0.0, 1.0])
-    #
-    #     self.line, = axes.plot(range(100), np.random.random(100))
-    #     self.lineTuple = (self.line,)
-    #
-    #     # axes.plot(Xarray, Yarray)
-    #
-    #     self.canvas = FigureCanvas(fig)
-    #     self.graphToolbar = NavigationToolbar(self.canvas, self)
 
+class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
+    """
 
-class TestWindow(QWidget):
-    def __init__(self, parent=None):
-        super(TestWindow, self).__init__(parent)
-        self.setWindowTitle("Test")
+    """
 
-        self.label = QLabel("*** TEST TEST TEST ***")
+    def __init__(self, nPoints=200, procVarRange=(0, 0), contOutRange=(0, 0), interval=17, start=False):
+        super(CustomGraphicsLayoutWidget, self).__init__()
 
-        grid = QGridLayout()
-        self.setLayout(grid)
-        grid.addWidget(self.label)
+        self.nPoints = nPoints
+        self.interval = interval
+        self.run = False
+        self.timeAxes = np.linspace(-nPoints*interval, 0, nPoints)
+
+        self.procVarGraph = self.addPlot(y=np.zeros([self.nPoints]), labels={'right': "Process Variable"})
+        if procVarRange != (0, 0):
+            self.procVarGraph.setRange(yRange=procVarRange)
+
+        self.nextRow()
+
+        self.contOutGraph = self.addPlot(y=np.zeros([self.nPoints]), labels={'right': "Controller Output", 'bottom': "Time, ms"})
+        if contOutRange != (0, 0):
+            self.contOutGraph.setRange(yRange=contOutRange)
+
+        self.procVarAverLabel = pyqtgraph.ValueLabel(siPrefix=True, suffix='V', averageTime=nPoints*interval)
+        self.contOutAverLabel = pyqtgraph.ValueLabel(siPrefix=True, suffix='Parrots', averageTime=nPoints*interval)
+
+        self.updateTimer = QTimer()
+        self.updateTimer.timeout.connect(self.update_graphs)
+        if start:
+            self.start_live_graphs()
+
+    def start_live_graphs(self):
+        self.run = True
+        self.updateTimer.start(self.interval)
+
+    def pause_live_graphs(self):
+        self.run = False
+        self.updateTimer.stop()
+
+    def toggle_live_graphs(self):
+        if self.run:
+            self.pause_live_graphs()
+        else:
+            self.start_live_graphs()
+
+    def update_graphs(self):
+        self.procVarAverLabel.setValue(4.5 + np.random.rand())
+        self.contOutAverLabel.setValue(4.5 + np.random.rand())
+
+        procVarData = np.roll(self.procVarGraph.curves[0].getData()[1], -1)
+        procVarData[-1] = 4.5 + np.random.rand()
+        contOutData = np.roll(self.contOutGraph.curves[0].getData()[1], -1)
+        contOutData[-1] = 4.5 + np.random.rand()
+        self.procVarGraph.curves[0].setData(self.timeAxes, procVarData)
+        self.contOutGraph.curves[0].setData(self.timeAxes, contOutData)

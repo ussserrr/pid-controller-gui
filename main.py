@@ -3,11 +3,10 @@ if __name__ == '__main__':
     __version__ = 'zeta'
 
 import sys
-# import os
-# os.environ['QT_API'] = 'pyqt5'
 from numpy import mean as numpy_mean, __version__ as numpy___version__
 from time import time as time_time
-from matplotlib import __version__ as matplotlib___version__
+# from matplotlib import __version__ as matplotlib___version__
+matplotlib___version__ = 0.0
 
 from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGroupBox, QLabel, QPushButton,\
                             QApplication, QSpinBox, QStatusBar, QProgressBar, QLineEdit, QCheckBox, QGridLayout,\
@@ -17,11 +16,10 @@ from PyQt5.QtCore import QTimer, QCoreApplication, QSettings, Qt, QT_VERSION_STR
 from PyQt5.Qt import PYQT_VERSION_STR
 import qdarkstyle
 
-from miscgraphics import PicButton, MessageWindow, Graph
+from miscgraphics import PicButton, MessageWindow, CustomGraphicsLayoutWidget
 from mcuconn import MCUconn
 
-# import numpy as np
-# import pyqtgraph
+import numpy as np
 
 
 
@@ -31,17 +29,17 @@ class SettingsWindow(QWidget):
         self.setWindowTitle("Settings")
         self.setWindowIcon(QIcon('img/settings.png'))
 
-        self.onlyUGraphRadioButton = QRadioButton("Plot only U(t) graph")
-        self.onlyPIDGraphRadioButton = QRadioButton("Plot only PID-output(t) graph")
-        self.bothGraphsRadioButton = QRadioButton("Plot both graphs concurrently")
-        self.onlyUGraphRadioButton.setChecked(True)
+        # self.onlyUGraphRadioButton = QRadioButton("Plot only U(t) graph")
+        # self.onlyPIDGraphRadioButton = QRadioButton("Plot only PID-output(t) graph")
+        # self.bothGraphsRadioButton = QRadioButton("Plot both graphs concurrently")
+        # self.bothGraphsRadioButton.setChecked(True)
 
-        chooseNumberOfGraphsVBox = QVBoxLayout()
-        chooseNumberOfGraphsVBox.addWidget(self.onlyUGraphRadioButton)
-        chooseNumberOfGraphsVBox.addWidget(self.onlyPIDGraphRadioButton)
-        chooseNumberOfGraphsVBox.addWidget(self.bothGraphsRadioButton)
-        chooseNumberOfGraphsGroupBox = QGroupBox("Graphs to plot:")
-        chooseNumberOfGraphsGroupBox.setLayout(chooseNumberOfGraphsVBox)
+        # chooseNumberOfGraphsVBox = QVBoxLayout()
+        # chooseNumberOfGraphsVBox.addWidget(self.onlyUGraphRadioButton)
+        # chooseNumberOfGraphsVBox.addWidget(self.onlyPIDGraphRadioButton)
+        # chooseNumberOfGraphsVBox.addWidget(self.bothGraphsRadioButton)
+        # chooseNumberOfGraphsGroupBox = QGroupBox("Graphs to plot:")
+        # chooseNumberOfGraphsGroupBox.setLayout(chooseNumberOfGraphsVBox)
 
         restoreLabel = QLabel("Restore all MCU values to values at program start time")
         restoreButton = QPushButton("Restore")
@@ -53,7 +51,7 @@ class SettingsWindow(QWidget):
 
         grid = QGridLayout()
         self.setLayout(grid)
-        grid.addWidget(chooseNumberOfGraphsGroupBox)
+        # grid.addWidget(chooseNumberOfGraphsGroupBox)
         grid.addWidget(restoreLabel)
         grid.addWidget(restoreButton)
         grid.addWidget(saveToEEPROMLabel)
@@ -65,7 +63,7 @@ class SettingsWindow(QWidget):
         refreshAllPIDvalues()
 
     def saveToEEPROM(self):
-        if not tivaConn.saveToEEPROM():
+        if tivaConn.saveToEEPROM() == 0:
             MessageWindow(text='Successfully saved', type='Info')
             refreshAllPIDvalues()
         else:
@@ -216,11 +214,6 @@ class MainWindow(QMainWindow):
             # QToolTip.setFont(QFont('SansSerif', 10))
             # self.setToolTip('This is a <b>QWidget</b> widget')
 
-            # p = self.palette()
-            # p.setColor(self.backgroundRole(), Qt.black)
-            # self.setAutoFillBackground(True)
-            # self.setPalette(p)
-
             # Group for read/write PID setpoint
             self.setpointReadLabel = QLabel("Current setpoint, V: <b>{0:.3f}</b>".format(tivaConn.read('setpoint')[0]))
             setpointRefreshButton = PicButton(QPixmap("img/refresh.png"), QPixmap("img/refresh_hover.png"), QPixmap("img/refresh_pressed.png"))
@@ -334,39 +327,37 @@ class MainWindow(QMainWindow):
             errorsSettingsButton.clicked.connect(self.errorsSettingsWindow.show)
 
 
-            self.secondsSpinBox = QSpinBox()
-            self.secondsSpinBox.setSuffix(" seconds")
-            self.secondsSpinBox.setMinimum(0)
-            self.secondsSpinBox.setStatusTip('Number of seconds in plot')
-            self.secondsSpinBox.setValue(2)
+            # self.secondsSpinBox = QSpinBox()
+            # self.secondsSpinBox.setSuffix(" seconds")
+            # self.secondsSpinBox.setMinimum(0)
+            # self.secondsSpinBox.setStatusTip('Number of seconds in plot')
+            # self.secondsSpinBox.setValue(2)
+            #
+            #
+            # startPlotButton = QPushButton("Plot")
+            # startPlotButton.clicked.connect(self.makePlot)
 
 
-            startPlotButton = QPushButton("Plot")
-            startPlotButton.clicked.connect(self.makePlot)
+            self.graphs = CustomGraphicsLayoutWidget(nPoints=200, procVarRange=(0.0, 10.0), contOutRange=(0.0, 10.0), interval=17, start=True)
 
-
-            self.calcAvrgUCheckBox = QCheckBox("Aver. U")
-            self.calcAvrgUCheckBox.setStatusTip("Calculate average voltage in next measurement")
-            self.avrgULabel = QLabel("U: -")
+            # self.calcAvrgUCheckBox = QCheckBox("Aver. U")
+            # self.calcAvrgUCheckBox.setStatusTip("Calculate average voltage in next measurement")
+            self.avrgULabel = self.graphs.procVarAverLabel
             self.avrgULabel.setStatusTip('Average voltage of last measurement')
 
-            self.calcAvrgPIDCheckBox = QCheckBox("Aver. PID-output")
-            self.calcAvrgPIDCheckBox.setStatusTip("Calculate average PID-output value in next measurement")
-            self.avrgPIDLabel = QLabel("PID-output: -")
+            # self.calcAvrgPIDCheckBox = QCheckBox("Aver. PID-output")
+            # self.calcAvrgPIDCheckBox.setStatusTip("Calculate average PID-output value in next measurement")
+            self.avrgPIDLabel = self.graphs.contOutAverLabel
             self.avrgPIDLabel.setStatusTip('Average PID-output value of last measurement')
 
 
-            self.uGraph = Graph(xlabel='Time, seconds', ylabel='Voltage, Volts', auto_ylim=False, ymin=0, ymax=3.3)
-            # self.uGraph = pyqtgraph.GraphicsLayoutWidget()
-            # self.p1 = self.uGraph.addPlot(title="Basic array plotting", y=np.random.normal(size=100))
-            self.pidGraph = Graph(ylabel='PID-output')
-
-            self.plotProgressBar = QProgressBar()
-            self.Parent.statusBar().addPermanentWidget(self.plotProgressBar)
+            # self.plotProgressBar = QProgressBar()
+            # self.Parent.statusBar().addPermanentWidget(self.plotProgressBar)
 
 
             self.grid = QGridLayout()
             self.setLayout(self.grid)
+            self.grid.addWidget(self.graphs, 0, 1, 5, 1)
 
 
             coefficientsBox = QVBoxLayout()
@@ -379,39 +370,34 @@ class MainWindow(QMainWindow):
             self.grid.setAlignment(errorsSettingsButton, Qt.AlignCenter)
 
 
-            makePlotBox = QHBoxLayout()
-            makePlotBox.addWidget(self.secondsSpinBox)
-            makePlotBox.setAlignment(self.secondsSpinBox, Qt.AlignRight)
-            makePlotBox.addWidget(startPlotButton)
-            makePlotBox.setAlignment(startPlotButton, Qt.AlignLeft)
-            self.grid.addLayout(makePlotBox, 4, 0)
+            # makePlotBox = QHBoxLayout()
+            # makePlotBox.addWidget(self.secondsSpinBox)
+            # makePlotBox.setAlignment(self.secondsSpinBox, Qt.AlignRight)
+            # makePlotBox.addWidget(startPlotButton)
+            # makePlotBox.setAlignment(startPlotButton, Qt.AlignLeft)
+            # self.grid.addLayout(makePlotBox, 4, 0)
 
 
             avrgUBox = QHBoxLayout()
-            avrgUBox.addWidget(self.calcAvrgUCheckBox)
+            avrgUBox.addWidget(QLabel("Process Variable:"))
             avrgUBox.addWidget(self.avrgULabel)
-            self.grid.addLayout(avrgUBox, 5, 0)
+            self.grid.addLayout(avrgUBox, 3, 0)
 
             avrgPIDBox = QHBoxLayout()
-            avrgPIDBox.addWidget(self.calcAvrgPIDCheckBox)
+            avrgPIDBox.addWidget(QLabel("Controller Output:"))
             avrgPIDBox.addWidget(self.avrgPIDLabel)
-            self.grid.addLayout(avrgPIDBox, 6, 0)
+            self.grid.addLayout(avrgPIDBox, 4, 0)
 
 
-            self.uGraphToolbar = self.uGraph.graphToolbar
-            self.pidGraphToolbar = self.pidGraph.graphToolbar
-
-            self.plotBox = QVBoxLayout()
-            self.plotBox.addWidget(self.uGraph)
-            self.plotBox.addWidget(self.uGraphToolbar)
-            self.plotBox.setAlignment(self.uGraphToolbar, Qt.AlignCenter)
-            self.plotBox.addWidget(self.pidGraph)
-            self.plotBox.addWidget(self.pidGraphToolbar)
-            self.plotBox.setAlignment(self.pidGraphToolbar, Qt.AlignCenter)
-
-            self.grid.addLayout(self.plotBox, 0, 1, 7, 1)
-
-            self.setLayout(self.grid)
+            # self.plotBox = QVBoxLayout()
+            # self.plotBox.addWidget(self.uGraph)
+            # self.plotBox.addWidget(self.uGraphToolbar)
+            # self.plotBox.setAlignment(self.uGraphToolbar, Qt.AlignCenter)
+            # self.plotBox.addWidget(self.pidGraph)
+            # self.plotBox.addWidget(self.pidGraphToolbar)
+            # self.plotBox.setAlignment(self.pidGraphToolbar, Qt.AlignCenter)
+            #
+            # self.grid.addLayout(self.plotBox, 0, 1, 7, 1)
 
 
         def setpointRefresh(self):
@@ -466,80 +452,6 @@ class MainWindow(QMainWindow):
             self.KdRefresh()
 
 
-        def makePlot(self):
-            timeArray = []
-            uArray = []
-            pidArray = []
-
-            if self.Parent.settingsWindow.onlyUGraphRadioButton.isChecked():
-                startTime = time_time()
-                while time_time()-startTime < self.secondsSpinBox.value():
-                    timeArray.append(time_time()-startTime)
-                    uArray.append(tivaConn.read('U')[0])
-                    pidArray.append(0.0)
-                    self.plotProgressBar.setValue(100.0*((time_time()-startTime)/self.secondsSpinBox.value()))
-                    QApplication.processEvents()
-
-            elif self.Parent.settingsWindow.onlyPIDGraphRadioButton.isChecked():
-                startTime = time_time()
-                while time_time()-startTime < self.secondsSpinBox.value():
-                    timeArray.append(time_time()-startTime)
-                    pidArray.append(tivaConn.read('PID')[0])
-                    uArray.append(0.0)
-                    self.plotProgressBar.setValue(100.0*((time_time()-startTime)/self.secondsSpinBox.value()))
-                    QApplication.processEvents()
-
-            elif self.Parent.settingsWindow.bothGraphsRadioButton.isChecked():
-                startTime = time_time()
-                while time_time()-startTime < self.secondsSpinBox.value():
-                    timeArray.append(time_time()-startTime)
-                    uArray.append(tivaConn.read('U')[0])
-                    pidArray.append(tivaConn.read('PID')[0])
-                    self.plotProgressBar.setValue(100.0*((time_time()-startTime)/self.secondsSpinBox.value()))
-                    QApplication.processEvents()
-
-            self.Parent.statusBar().showMessage("Points in plot: {}".format(len(timeArray)))
-
-            self.uGraph.setParent(None)
-            self.uGraphToolbar.setParent(None)
-            if self.Parent.settingsWindow.onlyPIDGraphRadioButton.isChecked():
-                self.uGraph = Graph(xlabel='Time, seconds', ylabel='Voltage, Volts', auto_ylim=False, ymin=0, ymax=3.3)
-            else:
-                self.uGraph = Graph(Xarray=timeArray, Yarray=uArray, xlabel='Time, seconds', ylabel='Voltage, Volts', auto_ylim=False, ymin=0, ymax=3.3)
-            self.uGraphToolbar = self.uGraph.getGraphToolbar()
-
-            self.pidGraph.setParent(None)
-            self.pidGraphToolbar.setParent(None)
-            if self.Parent.settingsWindow.onlyUGraphRadioButton.isChecked():
-                self.pidGraph = Graph(ylabel='PID-output')
-            else:
-                self.pidGraph = Graph(Xarray=timeArray, Yarray=pidArray, ylabel='PID-output')
-            self.pidGraphToolbar = self.pidGraph.getGraphToolbar()
-
-            self.plotBox.addWidget(self.uGraph)
-            self.plotBox.addWidget(self.uGraphToolbar)
-            self.plotBox.setAlignment(self.uGraphToolbar, Qt.AlignCenter)
-
-            self.plotBox.addWidget(self.pidGraph)
-            self.plotBox.addWidget(self.pidGraphToolbar)
-            self.plotBox.setAlignment(self.pidGraphToolbar, Qt.AlignCenter)
-
-            if self.calcAvrgUCheckBox.isChecked():
-                if not self.Parent.settingsWindow.onlyPIDGraphRadioButton.isChecked():
-                    self.avrgULabel.setText("U: {0:.3f}".format(numpy_mean(uArray)))
-                else:
-                    self.avrgULabel.setText("U: -")
-            else:
-                self.avrgULabel.setText("U: -")
-
-            if self.calcAvrgPIDCheckBox.isChecked():
-                if not self.Parent.settingsWindow.onlyUGraphRadioButton.isChecked():
-                    self.avrgPIDLabel.setText("PID-output: {0:.3f}".format(numpy_mean(pidArray)))
-                else:
-                    self.avrgPIDLabel.setText("PID-output: -")
-            else:
-                self.avrgPIDLabel.setText("PID-output: -")
-
 
 
     def __init__(self, parent=None):
@@ -568,15 +480,23 @@ class MainWindow(QMainWindow):
         self.settingsWindow = SettingsWindow()
         settingsAction.triggered.connect(self.settingsWindow.show)
 
-        toolbar = self.addToolBar('')
-        toolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        toolbar.addAction(exitAction)
-        toolbar.addAction(infoAction)
-        toolbar.addAction(settingsAction)
+        mainToolbar = self.addToolBar('main')
+        mainToolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        mainToolbar.addAction(exitAction)
+        mainToolbar.addAction(infoAction)
+        mainToolbar.addAction(settingsAction)
 
-        # toolbar1 = self.addToolBar('1')
-        # toolbar1.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        # toolbar1.addAction(exitAction)
+        playpauseAction = QAction(QIcon('img/play_pause.png'), 'Play/Pause', self)
+        playpauseAction.setShortcut('P')
+        playpauseAction.setStatusTip('Play/pause graphs')
+        # playpauseAction.triggered.connect(self.formWidget.graphs.toggle_live_graphs)
+        playpauseAction.triggered.connect(self.playpauseGraphs)
+
+        graphsToolbar = self.addToolBar('graphs')
+        graphsToolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        graphsToolbar.addAction(playpauseAction)
+        self.playpauseButton = graphsToolbar.widgetForAction(playpauseAction)
+        self.playpauseButton.setCheckable(True)
 
         # menubar = self.menuBar()
         mainMenu = self.menuBar().addMenu('&Menu')
@@ -587,6 +507,12 @@ class MainWindow(QMainWindow):
         if DEMO_MODE:
             self.statusBar().addWidget(QLabel("<font color='red'>Demo mode</font>"))
 
+    def playpauseGraphs(self):
+        if self.formWidget.graphs.run:
+            self.playpauseButton.setChecked(True)
+        else:
+            self.playpauseButton.setChecked(False)
+        self.formWidget.graphs.toggle_live_graphs()
 
 
 
