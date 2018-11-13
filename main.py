@@ -1,3 +1,6 @@
+import functools
+import string
+
 if __name__ == '__main__':
     print('loading...\n')
     __version__ = 'zeta'
@@ -10,7 +13,7 @@ matplotlib___version__ = 0.0
 
 from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGroupBox, QLabel, QPushButton,\
                             QApplication, QSpinBox, QStatusBar, QProgressBar, QLineEdit, QCheckBox, QGridLayout,\
-                            QTabWidget, QMainWindow, QToolTip, QAction, QLayout, QSizePolicy
+                            QTabWidget, QMainWindow, QToolTip, QAction, QLayout, QSizePolicy, QButtonGroup
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import QTimer, QCoreApplication, QSettings, Qt, QT_VERSION_STR
 from PyQt5.Qt import PYQT_VERSION_STR
@@ -24,8 +27,11 @@ import numpy as np
 
 
 class SettingsWindow(QWidget):
+
     def __init__(self, parent=None):
+
         super(SettingsWindow, self).__init__(parent)
+
         self.setWindowTitle("Settings")
         self.setWindowIcon(QIcon('img/settings.png'))
 
@@ -41,33 +47,60 @@ class SettingsWindow(QWidget):
         # chooseNumberOfGraphsGroupBox = QGroupBox("Graphs to plot:")
         # chooseNumberOfGraphsGroupBox.setLayout(chooseNumberOfGraphsVBox)
 
-        restoreLabel = QLabel("Restore all MCU values to values at program start time")
-        restoreButton = QPushButton("Restore")
-        restoreButton.clicked.connect(self.restore)
 
-        saveToEEPROMLabel = QLabel("Save current PID configuration to EEPROM")
-        saveToEEPROMButton = QPushButton("Save")
-        saveToEEPROMButton.clicked.connect(self.saveToEEPROM)
+        networkGroupBox = QGroupBox("Controller connection")
+        networkHBox = QHBoxLayout()
+        networkGroupBox.setLayout(networkHBox)
+
+        self.ipLineEdit = QLineEdit(contIP)
+        self.portLineEdit = QLineEdit(str(contPort))
+        networkHBox.addWidget(self.ipLineEdit)
+        networkHBox.addWidget(self.portLineEdit)
+
+
+
+        themeHBox = QHBoxLayout()
+        themeGroupBox = QGroupBox('Theme')
+        themeGroupBox.setLayout(themeHBox)
+
+        self.themeLightRadioButton = QRadioButton('Light')
+        self.themeDarkRadioButton = QRadioButton('Dark')
+        themeButtonGroup = QButtonGroup(themeGroupBox)
+        themeButtonGroup.addButton(self.themeLightRadioButton)
+        themeButtonGroup.addButton(self.themeDarkRadioButton)
+
+        if theme == 'light':
+            self.themeLightRadioButton.setChecked(True)
+        else:
+            self.themeDarkRadioButton.setChecked(True)
+        self.themeLightRadioButton.toggled.connect(self.themeSet)
+
+        themeHBox.addWidget(self.themeLightRadioButton)
+        themeHBox.addWidget(self.themeDarkRadioButton)
+
+
+
+        # TODO: graphs settings
+
+
 
         grid = QGridLayout()
         self.setLayout(grid)
-        # grid.addWidget(chooseNumberOfGraphsGroupBox)
-        grid.addWidget(restoreLabel)
-        grid.addWidget(restoreButton)
-        grid.addWidget(saveToEEPROMLabel)
-        grid.addWidget(saveToEEPROMButton)
+        grid.addWidget(themeGroupBox)
+        grid.addWidget(networkGroupBox)
+        # grid.addWidget(restoreLabel)
+        # grid.addWidget(restoreButton)
+        # grid.addWidget(saveToEEPROMLabel)
+        # grid.addWidget(saveToEEPROMButton)
 
 
-    def restore(self):
-        tivaConn.restoreValues()
-        refreshAllPIDvalues()
-
-    def saveToEEPROM(self):
-        if tivaConn.saveToEEPROM() == 0:
-            MessageWindow(text='Successfully saved', type='Info')
-            refreshAllPIDvalues()
+    def themeSet(self):
+        if self.themeLightRadioButton.isChecked():
+            theme = 'light'
         else:
-            MessageWindow(text='Saving failed!', type='Warning')
+            theme = 'dark'
+        settings.setValue("appearance/theme", theme)
+        MessageWindow(text="Theme is saved. Please restart the application to take effect.", type='Info')
 
 
 
@@ -139,7 +172,7 @@ class ErrorsSettingsWindow(QWidget):
     def setPerrLimits(self):
         try:
             if float(self.PerrMaxLineEdit.text())<float(self.PerrMinLineEdit.text()):
-                MessageWindow(text="Upper limit value is less than lower", type='Error')
+                MessageWindow(text="Upper limit value is less than lower!", type='Error')
             else:
                 tivaConn.write('PerrLimits', float(self.PerrMinLineEdit.text()), float(self.PerrMaxLineEdit.text()))
         except ValueError:
@@ -152,7 +185,7 @@ class ErrorsSettingsWindow(QWidget):
     def setIerrLimits(self):
         try:
             if float(self.IerrMaxLineEdit.text())<float(self.IerrMinLineEdit.text()):
-                MessageWindow(text="Upper limit value is less than lower", type='Error')
+                MessageWindow(text="Upper limit value is less than lower!", type='Error')
             else:
                 tivaConn.write('IerrLimits', float(self.IerrMinLineEdit.text()), float(self.IerrMaxLineEdit.text()))
         except ValueError:
@@ -184,7 +217,7 @@ class AboutWindow(QTabWidget):
 
     def initSysTabUI(self):
         layout = QVBoxLayout()
-        sysTabText = QLabel("IP-address of MCU: {}\nUDP-port: {}".format(IP, PORT))
+        sysTabText = QLabel("IP-address of MCU: {}\nUDP-port: {}".format(contIP, contPort))
         sysTabText.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         sysTabText.setWordWrap(True)
         sysTabText.setAlignment(Qt.AlignCenter)
@@ -205,278 +238,186 @@ class AboutWindow(QTabWidget):
 
 
 
-class MainWindow(QMainWindow):
+class ValueGroupBox(QGroupBox):
+    """
 
-    class FormWidget(QWidget):
-        def initUI(self, parent):
-            self.Parent = parent
+    """
 
-            # QToolTip.setFont(QFont('SansSerif', 10))
-            # self.setToolTip('This is a <b>QWidget</b> widget')
+    def __init__(self, label, conn, parent=None):
 
-            # Group for read/write PID setpoint
-            self.setpointReadLabel = QLabel("Current setpoint, V: <b>{0:.3f}</b>".format(tivaConn.read('setpoint')[0]))
-            setpointRefreshButton = PicButton(QPixmap("img/refresh.png"), QPixmap("img/refresh_hover.png"), QPixmap("img/refresh_pressed.png"))
-            setpointRefreshButton.clicked.connect(self.setpointRefresh)
-            setpointRefreshButton.setIcon(QIcon("img/refresh.png"))
-            self.setpointWriteLine = QLineEdit()
-            self.setpointWriteLine.setPlaceholderText("Enter new setpoint")
-            setpointWriteButton = QPushButton('Send...', self)
-            setpointWriteButton.clicked.connect(self.setpointWriteButtonClicked)
+        super(ValueGroupBox, self).__init__(parent)
 
-            setpointHBox1 = QHBoxLayout()
-            setpointHBox1.addWidget(self.setpointReadLabel)
-            setpointHBox1.addStretch(1)
-            setpointHBox1.addWidget(setpointRefreshButton)
+        self.setTitle(f"{label.capitalize()} control")
 
-            setpointHBox2 = QHBoxLayout()
-            setpointHBox2.addWidget(self.setpointWriteLine)
-            setpointHBox2.addWidget(setpointWriteButton)
+        self.label = label
+        self.conn = conn
 
-            setpointVBox1 = QVBoxLayout()
-            setpointVBox1.addLayout(setpointHBox1)
-            setpointVBox1.addLayout(setpointHBox2)
+        self.valLabelTemplate = string.Template("Current $label: <b>{:.3f}</b>").safe_substitute(label=label)
+        self.valLabel = QLabel()
+        self.refreshVal()
+        refreshButton = PicButton(QPixmap("img/refresh.png"), QPixmap("img/refresh_hover.png"),
+                                  QPixmap("img/refresh_pressed.png"))
+        refreshButton.clicked.connect(self.refreshVal)
+        refreshButton.setIcon(QIcon("img/refresh.png"))
+        self.writeLine = QLineEdit()
+        self.writeLine.setPlaceholderText(f"Enter new '{label}'")
+        writeButton = QPushButton('Send', self)
+        writeButton.clicked.connect(self.writeButtonClicked)
 
-            setpointGroupBox = QGroupBox("Setpoint control")
-            setpointGroupBox.setLayout(setpointVBox1)
+        hBox1 = QHBoxLayout()
+        hBox1.addWidget(self.valLabel)
+        hBox1.addStretch(1)
+        hBox1.addWidget(refreshButton)
 
+        hBox2 = QHBoxLayout()
+        hBox2.addWidget(self.writeLine)
+        hBox2.addWidget(writeButton)
 
-            # Group for read/write Kp coefficient
-            self.KpReadLabel = QLabel("Current Kp value: <b>{0:.3f}</b>".format(tivaConn.read('Kp')[0]))
-            KpRefreshButton = PicButton(QPixmap("img/refresh.png"), QPixmap("img/refresh_hover.png"), QPixmap("img/refresh_pressed.png"))
-            KpRefreshButton.clicked.connect(self.KpRefresh)
-            KpRefreshButton.setIcon(QIcon("img/refresh.png"))
-            self.KpWriteLine = QLineEdit()
-            self.KpWriteLine.setPlaceholderText("Enter new Kp")
-            KpWriteButton = QPushButton('Send...', self)
-            KpWriteButton.clicked.connect(self.KpWriteButtonClicked)
+        vBox1 = QVBoxLayout()
+        vBox1.addLayout(hBox1)
+        vBox1.addLayout(hBox2)
 
-            KpHBox1 = QHBoxLayout()
-            KpHBox1.addWidget(self.KpReadLabel)
-            KpHBox1.addStretch(1)
-            KpHBox1.addWidget(KpRefreshButton)
-
-            KpHBox2 = QHBoxLayout()
-            KpHBox2.addWidget(self.KpWriteLine)
-            KpHBox2.addWidget(KpWriteButton)
-
-            KpVBox1 = QVBoxLayout()
-            KpVBox1.addLayout(KpHBox1)
-            KpVBox1.addLayout(KpHBox2)
-
-            KpGroupBox = QGroupBox("Kp control")
-            KpGroupBox.setLayout(KpVBox1)
+        self.setLayout(vBox1)
 
 
-            # Group for read/write PID Ki coefficient
-            self.KiReadLabel = QLabel("Current Ki value: <b>{0:.3f}</b>".format(tivaConn.read('Ki')[0]))
-            KiRefreshButton = PicButton(QPixmap("img/refresh.png"), QPixmap("img/refresh_hover.png"), QPixmap("img/refresh_pressed.png"))
-            KiRefreshButton.clicked.connect(self.KiRefresh)
-            KiRefreshButton.setIcon(QIcon("img/refresh.png"))
-            self.KiWriteLine = QLineEdit()
-            self.KiWriteLine.setPlaceholderText("Enter new Ki")
-            KiWriteButton = QPushButton('Send...', self)
-            KiWriteButton.clicked.connect(self.KiWriteButtonClicked)
-
-            KiHBox1 = QHBoxLayout()
-            KiHBox1.addWidget(self.KiReadLabel)
-            KiHBox1.addStretch(1)
-            KiHBox1.addWidget(KiRefreshButton)
-
-            KiHBox2 = QHBoxLayout()
-            KiHBox2.addWidget(self.KiWriteLine)
-            KiHBox2.addWidget(KiWriteButton)
-
-            KiVBox = QVBoxLayout()
-            KiVBox.addLayout(KiHBox1)
-            KiVBox.addLayout(KiHBox2)
-
-            KiGroupBox = QGroupBox("Ki control")
-            KiGroupBox.setLayout(KiVBox)
+    def refreshVal(self):
+        self.valLabel.setText(self.valLabelTemplate.format(self.conn.read(self.label)[0]))
 
 
-            # Group for read/write PID Kd coefficient
-            self.KdReadLabel = QLabel("Current Kd value: <b>{0:.3f}</b>".format(tivaConn.read('Kd')[0]))
-            KdRefreshButton = PicButton(QPixmap("img/refresh.png"), QPixmap("img/refresh_hover.png"), QPixmap("img/refresh_pressed.png"))
-            KdRefreshButton.clicked.connect(self.KdRefresh)
-            KdRefreshButton.setIcon(QIcon("img/refresh.png"))
-            self.KdWriteLine = QLineEdit()
-            self.KdWriteLine.setPlaceholderText("Enter new Kd")
-            KdWriteButton = QPushButton('Send...', self)
-            KdWriteButton.clicked.connect(self.KdWriteButtonClicked)
-
-            KdHBox1 = QHBoxLayout()
-            KdHBox1.addWidget(self.KdReadLabel)
-            KdHBox1.addStretch(1)
-            KdHBox1.addWidget(KdRefreshButton)
-
-            KdHBox2 = QHBoxLayout()
-            KdHBox2.addWidget(self.KdWriteLine)
-            KdHBox2.addWidget(KdWriteButton)
-
-            KdVBox = QVBoxLayout()
-            KdVBox.addLayout(KdHBox1)
-            KdVBox.addLayout(KdHBox2)
-
-            KdGroupBox = QGroupBox("Kd control")
-            KdGroupBox.setLayout(KdVBox)
-
-
-            self.errorsSettingsWindow = ErrorsSettingsWindow()
-            errorsSettingsButton = QPushButton(QIcon('img/set_errors.png'), "Set values of errors...")
-            errorsSettingsButton.clicked.connect(self.errorsSettingsWindow.show)
-
-
-            # self.secondsSpinBox = QSpinBox()
-            # self.secondsSpinBox.setSuffix(" seconds")
-            # self.secondsSpinBox.setMinimum(0)
-            # self.secondsSpinBox.setStatusTip('Number of seconds in plot')
-            # self.secondsSpinBox.setValue(2)
-            #
-            #
-            # startPlotButton = QPushButton("Plot")
-            # startPlotButton.clicked.connect(self.makePlot)
-
-
-            self.graphs = CustomGraphicsLayoutWidget(nPoints=200, procVarRange=(0.0, 10.0), contOutRange=(0.0, 10.0), interval=17, start=True)
-
-            # self.calcAvrgUCheckBox = QCheckBox("Aver. U")
-            # self.calcAvrgUCheckBox.setStatusTip("Calculate average voltage in next measurement")
-            self.avrgULabel = self.graphs.procVarAverLabel
-            self.avrgULabel.setStatusTip('Average voltage of last measurement')
-
-            # self.calcAvrgPIDCheckBox = QCheckBox("Aver. PID-output")
-            # self.calcAvrgPIDCheckBox.setStatusTip("Calculate average PID-output value in next measurement")
-            self.avrgPIDLabel = self.graphs.contOutAverLabel
-            self.avrgPIDLabel.setStatusTip('Average PID-output value of last measurement')
-
-
-            # self.plotProgressBar = QProgressBar()
-            # self.Parent.statusBar().addPermanentWidget(self.plotProgressBar)
-
-
-            self.grid = QGridLayout()
-            self.setLayout(self.grid)
-            self.grid.addWidget(self.graphs, 0, 1, 5, 1)
-
-
-            coefficientsBox = QVBoxLayout()
-            coefficientsBox.addWidget(setpointGroupBox)
-            coefficientsBox.addWidget(KpGroupBox)
-            coefficientsBox.addWidget(KiGroupBox)
-            coefficientsBox.addWidget(KdGroupBox)
-            self.grid.addLayout(coefficientsBox, 0, 0)
-            self.grid.addWidget(errorsSettingsButton, 2, 0)
-            self.grid.setAlignment(errorsSettingsButton, Qt.AlignCenter)
-
-
-            # makePlotBox = QHBoxLayout()
-            # makePlotBox.addWidget(self.secondsSpinBox)
-            # makePlotBox.setAlignment(self.secondsSpinBox, Qt.AlignRight)
-            # makePlotBox.addWidget(startPlotButton)
-            # makePlotBox.setAlignment(startPlotButton, Qt.AlignLeft)
-            # self.grid.addLayout(makePlotBox, 4, 0)
-
-
-            avrgUBox = QHBoxLayout()
-            avrgUBox.addWidget(QLabel("Process Variable:"))
-            avrgUBox.addWidget(self.avrgULabel)
-            self.grid.addLayout(avrgUBox, 3, 0)
-
-            avrgPIDBox = QHBoxLayout()
-            avrgPIDBox.addWidget(QLabel("Controller Output:"))
-            avrgPIDBox.addWidget(self.avrgPIDLabel)
-            self.grid.addLayout(avrgPIDBox, 4, 0)
-
-
-            # self.plotBox = QVBoxLayout()
-            # self.plotBox.addWidget(self.uGraph)
-            # self.plotBox.addWidget(self.uGraphToolbar)
-            # self.plotBox.setAlignment(self.uGraphToolbar, Qt.AlignCenter)
-            # self.plotBox.addWidget(self.pidGraph)
-            # self.plotBox.addWidget(self.pidGraphToolbar)
-            # self.plotBox.setAlignment(self.pidGraphToolbar, Qt.AlignCenter)
-            #
-            # self.grid.addLayout(self.plotBox, 0, 1, 7, 1)
-
-
-        def setpointRefresh(self):
-            self.setpointReadLabel.setText("Current setpoint, V: <b>{0:.3f}</b>".format(tivaConn.read('setpoint')[0]))
-
-        def KpRefresh(self):
-            self.KpReadLabel.setText("Current Kp value: <b>{0:.3f}</b>".format(tivaConn.read('Kp')[0]))
-
-        def KiRefresh(self):
-            self.KiReadLabel.setText("Current Ki value: <b>{0:.3f}</b>".format(tivaConn.read('Ki')[0]))
-
-        def KdRefresh(self):
-            self.KdReadLabel.setText("Current Kd value: <b>{0:.3f}</b>".format(tivaConn.read('Kd')[0]))
-
-
-        def setpointWriteButtonClicked(self):
-            try:
-                if float(self.setpointWriteLine.text()) <= 3.3 and float(self.setpointWriteLine.text()) >= 0:
-                    tivaConn.write('setpoint', float(self.setpointWriteLine.text()))
-                else:
-                    MessageWindow(text="Setpoint value must be in interval [0; 3.3] Volts!", type="Warning")
-            except ValueError:
-                pass
-            self.setpointWriteLine.clear()
-            self.setpointRefresh()
-
-
-        def KpWriteButtonClicked(self):
-            try:
-                tivaConn.write('Kp', float(self.KpWriteLine.text()))
-            except ValueError:
-                pass
-            self.KpWriteLine.clear()
-            self.KpRefresh()
-
-
-        def KiWriteButtonClicked(self):
-            try:
-                tivaConn.write('Ki', float(self.KiWriteLine.text()))
-            except ValueError:
-                pass
-            self.KiWriteLine.clear()
-            self.KiRefresh()
-
-
-        def KdWriteButtonClicked(self):
-            try:
-                tivaConn.write('Kd', float(self.KdWriteLine.text()))
-            except ValueError:
-                pass
-            self.KdWriteLine.clear()
-            self.KdRefresh()
+    def writeButtonClicked(self):
+        try:
+            self.conn.write(self.label, float(self.writeLine.text()))
+        except ValueError:
+            pass
+        self.writeLine.clear()
+        self.refreshVal()
 
 
 
+class CentralWidget(QWidget):
 
     def __init__(self, parent=None):
+
+        super(CentralWidget, self).__init__(parent)
+
+        # Group for read/write PID setpoint
+        setpointGroupBox = ValueGroupBox('setpoint', tivaConn)
+        # Group for read/write Kp coefficient
+        KpGroupBox = ValueGroupBox('Kp', tivaConn)
+        # Group for read/write PID Ki coefficient
+        KiGroupBox = ValueGroupBox('Ki', tivaConn)
+        # Group for read/write PID Kd coefficient
+        KdGroupBox = ValueGroupBox('Kd', tivaConn)
+
+        self.errorsSettingsWindow = ErrorsSettingsWindow()
+        # errorsSettingsButton = QPushButton(QIcon('img/set_errors.png'), "Set values of errors...")
+        # errorsSettingsButton.clicked.connect(self.errorsSettingsWindow.show)
+
+        self.graphs = CustomGraphicsLayoutWidget(nPoints=200, procVarRange=(0.0, 10.0), contOutRange=(0.0, 10.0),
+                                                 interval=17, theme=theme, start=True)
+
+        # self.calcAvrgUCheckBox = QCheckBox("Aver. U")
+        # self.calcAvrgUCheckBox.setStatusTip("Calculate average voltage in next measurement")
+        self.avrgULabel = self.graphs.procVarAverLabel
+        self.avrgULabel.setStatusTip('Average voltage of last measurement')
+
+        # self.calcAvrgPIDCheckBox = QCheckBox("Aver. PID-output")
+        # self.calcAvrgPIDCheckBox.setStatusTip("Calculate average PID-output value in next measurement")
+        self.avrgPIDLabel = self.graphs.contOutAverLabel
+        self.avrgPIDLabel.setStatusTip('Average PID-output value of last measurement')
+
+        grid = QGridLayout()
+        self.setLayout(grid)
+
+        grid.addWidget(setpointGroupBox, 0, 0, 3, 2)
+        grid.addWidget(KpGroupBox, 3, 0, 3, 2)
+        grid.addWidget(KiGroupBox, 6, 0, 3, 2)
+        grid.addWidget(KdGroupBox, 9, 0, 3, 2)
+
+        grid.addWidget(self.graphs, 0, 2, 14, 4)
+
+        # grid.addWidget(errorsSettingsButton, 12, 0, 1, 2)
+        # grid.setAlignment(errorsSettingsButton, Qt.AlignCenter)
+        #
+        # # restoreLabel = QLabel("Restore all MCU values to values at program start time")
+        # restoreButton = QPushButton("Restore")
+        # restoreButton.setStatusTip("Restore all controller parameters to values at the program start time")
+        # restoreButton.clicked.connect(self.restore)
+        #
+        # # saveToEEPROMLabel = QLabel("Save current controller configuration to EEPROM")
+        # saveToEEPROMButton = QPushButton("Save to EEPROM")
+        # saveToEEPROMButton.setStatusTip("Save current controller configuration to EEPROM")
+        # saveToEEPROMButton.clicked.connect(self.saveToEEPROM)
+        #
+        # grid.addWidget(restoreButton, 13, 0, 1, 2)
+        # grid.setAlignment(restoreButton, Qt.AlignCenter)
+        # grid.addWidget(saveToEEPROMButton, 14, 0, 1, 2)
+        # grid.setAlignment(saveToEEPROMButton, Qt.AlignCenter)
+
+
+        avrgUBox = QHBoxLayout()
+        avrgUBox.addWidget(QLabel("Process Variable:"))
+        avrgUBox.addWidget(self.avrgULabel)
+        grid.addLayout(avrgUBox, 12, 0, 1, 2)
+
+        avrgPIDBox = QHBoxLayout()
+        avrgPIDBox.addWidget(QLabel("Controller Output:"))
+        avrgPIDBox.addWidget(self.avrgPIDLabel)
+        grid.addLayout(avrgPIDBox, 13, 0, 1, 2)
+
+
+        # self.plotBox = QVBoxLayout()
+        # self.plotBox.addWidget(self.uGraph)
+        # self.plotBox.addWidget(self.uGraphToolbar)
+        # self.plotBox.setAlignment(self.uGraphToolbar, Qt.AlignCenter)
+        # self.plotBox.addWidget(self.pidGraph)
+        # self.plotBox.addWidget(self.pidGraphToolbar)
+        # self.plotBox.setAlignment(self.pidGraphToolbar, Qt.AlignCenter)
+        #
+        # self.grid.addLayout(self.plotBox, 0, 1, 7, 1)
+
+
+def restore(conn):
+    conn.restoreValues()
+    refreshAllPIDvalues()
+
+def saveToEEPROM(conn):
+    if conn.saveToEEPROM() == 0:
+        MessageWindow(text='Successfully saved', type='Info')
+        refreshAllPIDvalues()
+    else:
+        MessageWindow(text='Saving failed!', type='Error')
+
+
+
+
+class MainWindow(QMainWindow):
+
+    def __init__(self, parent=None):
+
         super(MainWindow, self).__init__(parent)
-        self.setWindowTitle("PID GUI application")
+
+        self.setWindowTitle("PID controller GUI")
         self.setWindowIcon(QIcon('img/icon.png'))
 
-        self.formWidget = self.FormWidget()
-        self.formWidget.initUI(self)
-        self.setCentralWidget(self.formWidget)
+        self.centralWidget = CentralWidget()
+        self.setCentralWidget(self.centralWidget)
+
 
         exitAction = QAction(QIcon('img/exit.png'), 'Exit', self)
         exitAction.setShortcut('Ctrl+Q')
-        exitAction.setStatusTip('Exit application')
+        exitAction.setStatusTip('[Ctrl+Q] Exit application')
         exitAction.triggered.connect(app.quit)
 
         infoAction = QAction(QIcon('img/info.png'), 'Info', self)
         infoAction.setShortcut('Ctrl+I')
-        infoAction.setStatusTip('Info & about')
+        infoAction.setStatusTip('[Ctrl+I] Info & about')
         self.aboutWindow = AboutWindow()
         infoAction.triggered.connect(self.aboutWindow.show)
 
         settingsAction = QAction(QIcon('img/settings.png'), 'Settings', self)
         settingsAction.setShortcut('Ctrl+P')
-        settingsAction.setStatusTip('Settings')
+        settingsAction.setStatusTip('[Ctrl+P] Settings')
         self.settingsWindow = SettingsWindow()
         settingsAction.triggered.connect(self.settingsWindow.show)
 
@@ -486,9 +427,33 @@ class MainWindow(QMainWindow):
         mainToolbar.addAction(infoAction)
         mainToolbar.addAction(settingsAction)
 
+
+        errorsLimitsAction = QAction(QIcon(), 'Errors limits', self)
+        errorsLimitsAction.setShortcut('E')
+        errorsLimitsAction.setStatusTip("[E] Set values of errors limits")
+        errorsLimitsAction.triggered.connect(self.centralWidget.errorsSettingsWindow.show)
+
+        restoreValuesAction = QAction(QIcon(), 'Restore controller', self)
+        restoreValuesAction.setShortcut('R')
+        restoreValuesAction.setStatusTip('[R] Restore all controller parameters to values at the program start time')
+        restoreValuesAction.triggered.connect(functools.partial(restore, tivaConn))
+
+        saveToEEPROMAction = QAction(QIcon(), 'Save to EEPROM', self)
+        saveToEEPROMAction.setShortcut('S')
+        saveToEEPROMAction.setStatusTip("[S] Save current controller configuration to EEPROM")
+        # saveToEEPROMAction.triggered.connect(self.centralWidget.saveToEEPROM)
+        saveToEEPROMAction.triggered.connect(functools.partial(saveToEEPROM, tivaConn))
+
+        contToolbar = self.addToolBar('controller')
+        contToolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        contToolbar.addAction(errorsLimitsAction)
+        contToolbar.addAction(restoreValuesAction)
+        contToolbar.addAction(saveToEEPROMAction)
+
+
         playpauseAction = QAction(QIcon('img/play_pause.png'), 'Play/Pause', self)
         playpauseAction.setShortcut('P')
-        playpauseAction.setStatusTip('Play/pause graphs')
+        playpauseAction.setStatusTip('[P] Play/pause graphs')
         # playpauseAction.triggered.connect(self.formWidget.graphs.toggle_live_graphs)
         playpauseAction.triggered.connect(self.playpauseGraphs)
 
@@ -508,11 +473,11 @@ class MainWindow(QMainWindow):
             self.statusBar().addWidget(QLabel("<font color='red'>Demo mode</font>"))
 
     def playpauseGraphs(self):
-        if self.formWidget.graphs.run:
+        if self.centralWidget.graphs.run:
             self.playpauseButton.setChecked(True)
         else:
             self.playpauseButton.setChecked(False)
-        self.formWidget.graphs.toggle_live_graphs()
+        self.centralWidget.graphs.toggle_live_graphs()
 
 
 
@@ -536,25 +501,23 @@ def connLostHandler():
 
 
 def refreshAllPIDvalues():
-    mainWindow.formWidget.setpointRefresh()
-    mainWindow.formWidget.KpRefresh()
-    mainWindow.formWidget.KiRefresh()
-    mainWindow.formWidget.KdRefresh()
-    mainWindow.formWidget.errorsSettingsWindow.PerrMin, mainWindow.formWidget.errorsSettingsWindow.PerrMax = tivaConn.read('PerrLimits')
-    mainWindow.formWidget.errorsSettingsWindow.PerrMinLineEdit.setText('{}'.format(mainWindow.formWidget.errorsSettingsWindow.PerrMin))
-    mainWindow.formWidget.errorsSettingsWindow.PerrMaxLineEdit.setText('{}'.format(mainWindow.formWidget.errorsSettingsWindow.PerrMax))
-    mainWindow.formWidget.errorsSettingsWindow.IerrMin, mainWindow.formWidget.errorsSettingsWindow.IerrMax = tivaConn.read('IerrLimits')
-    mainWindow.formWidget.errorsSettingsWindow.IerrMinLineEdit.setText('{}'.format(mainWindow.formWidget.errorsSettingsWindow.IerrMin))
-    mainWindow.formWidget.errorsSettingsWindow.IerrMaxLineEdit.setText('{}'.format(mainWindow.formWidget.errorsSettingsWindow.IerrMax))
+    mainWindow.centralWidget.setpointGroupBox.refreshVal()
+    mainWindow.centralWidget.KpGroupBox.refreshVal()
+    mainWindow.centralWidget.KiGroupBox.refreshVal()
+    mainWindow.centralWidget.KdGroupBox.refreshVal()
+    mainWindow.centralWidget.errorsSettingsWindow.PerrMin, mainWindow.centralWidget.errorsSettingsWindow.PerrMax = tivaConn.read('PerrLimits')
+    mainWindow.centralWidget.errorsSettingsWindow.PerrMinLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.PerrMin))
+    mainWindow.centralWidget.errorsSettingsWindow.PerrMaxLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.PerrMax))
+    mainWindow.centralWidget.errorsSettingsWindow.IerrMin, mainWindow.centralWidget.errorsSettingsWindow.IerrMax = tivaConn.read('IerrLimits')
+    mainWindow.centralWidget.errorsSettingsWindow.IerrMinLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.IerrMin))
+    mainWindow.centralWidget.errorsSettingsWindow.IerrMaxLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.IerrMax))
 
 
 
 
 if __name__ == '__main__':
-    aboutInfo = "v.'{}'\n(C) Andrey Chufyrev, 2017\n\nPython v.{} on {}.\n\nThis is the Python-based GUI application for PID-controller on the base of "\
-                "Texas Instruments TIVA-C MCU with remote control (UDP/IP/Ethernet) via Microchip ENC28J60.\n\nPackages versions:\n\tmatplotlib: {}\n\tnumpy: {}\n"\
-                "\tPyQt: {}\n\tQt: {}".format(__version__, sys.version[0:5], sys.platform, matplotlib___version__, numpy___version__, PYQT_VERSION_STR, QT_VERSION_STR)
-    print(aboutInfo)
+
+    aboutInfo = "la"
 
     ORGANIZATION_NAME = 'Andrey Chufyrev'
     APPLICATION_NAME = 'PID GUI'
@@ -563,40 +526,21 @@ if __name__ == '__main__':
 
 
     settings = QSettings()
-    IP = settings.value("network/ip")
-    PORT = settings.value("network/port", type=int)
-    if type(IP) == type(settings.value("non_existent_settings_key")):
-        IP = '192.168.1.110'
-        PORT = 1200
 
-    print("\nDefault IP/PORT pair is: {}/{}. If it's correct press ENTER. If you want to change these settings, please input new values as was given above. "\
-          "This pair will be the new default.".format(IP, PORT))
-    while (True):
-        try:
-            # input_str = input("Input here: ")
-            input_str = ''
-            if input_str != '':
-                IP = input_str[:input_str.index('/')]
-                PORT = int(input_str[input_str.index('/')+1:])
-
-                print("You entered:\n\tIP:   {}\n\tPORT: {}\nIf it's correct press ENTER, else input any symbol.".format(IP, PORT))
-                input_str = input("ENTER? ")
-                if input_str != '':
-                    continue
-                settings.setValue("network/ip", IP)
-                settings.setValue("network/port", PORT)
-                settings.sync()
-                break
-            else:
-                break
-        except ValueError:
-            print("Wrong input! Must be like: 192.168.1.110/1200. Try again.")
-
+    contIP = settings.value("network/ip", type=str, defaultValue='192.168.1.110')
+    contPort = settings.value("network/port", type=int, defaultValue=1200)
+    theme = settings.value("appearance/theme", type=str, defaultValue='light')
+    if not settings.contains("network/ip"):
+        settings.setValue("network/ip", contIP)
+        settings.setValue("network/port", contPort)
+        settings.setValue("appearance/theme", theme)
 
     app = QApplication(sys.argv)
-    # TODO: give it a name! (now is just "Python")
+    if theme == 'dark':
+        # TODO: maybe import qdarkstyle only there (need to see pyinstaller capabilities)
+        app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
 
-    tivaConn = MCUconn(IP, PORT)
+    tivaConn = MCUconn(contIP, contPort)
     # widget for showing in statusbar when connection lost
     connLostStatusBarLabel = QLabel("<font color='red'>Connection was lost. Trying to reconnect...</font>")
     DEMO_MODE = False
@@ -605,7 +549,7 @@ if __name__ == '__main__':
         DEMO_MODE = True
         print("\nDemo mode entered")
         # MessageWindow(text="Due to no connection to regulator the application will start in Demo mode. All values are random. "\
-        #                    "To exit Demo mode please restart application.")
+        #                    "To exit Demo mode please restart the application.")
     else:
         # if connection is present and no demo mode then create timer for connection checking
         checkConnectionTimer = QTimer()
@@ -617,8 +561,6 @@ if __name__ == '__main__':
     tivaConn.saveCurrentValues()
 
     mainWindow = MainWindow()
-    app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
     mainWindow.show()
 
-    print('\nloaded.\n')
     sys.exit(app.exec_())

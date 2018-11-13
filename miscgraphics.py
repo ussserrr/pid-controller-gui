@@ -8,6 +8,7 @@ import pyqtgraph
 
 
 
+
 class PicButton(QAbstractButton):
 
     """
@@ -162,7 +163,12 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
     """
 
-    def __init__(self, nPoints=200, procVarRange=(0, 0), contOutRange=(0, 0), interval=17, start=False):
+    def __init__(self, nPoints=200, procVarRange=(0,0), contOutRange=(0,0), interval=17, theme='dark', start=False):
+
+        if theme != 'dark':
+            pyqtgraph.setConfigOption('background', 'w')
+            pyqtgraph.setConfigOption('foreground', 'k')
+
         super(CustomGraphicsLayoutWidget, self).__init__()
 
         self.nPoints = nPoints
@@ -170,15 +176,19 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         self.run = False
         self.timeAxes = np.linspace(-nPoints*interval, 0, nPoints)
 
-        self.procVarGraph = self.addPlot(y=np.zeros([self.nPoints]), labels={'right': "Process Variable"})
-        if procVarRange != (0, 0):
+        self.procVarGraph = self.addPlot(y=np.zeros([self.nPoints]), labels={'right': "Process Variable"}, pen=pyqtgraph.mkPen(color='r'))
+        if procVarRange != (0,0):
             self.procVarGraph.setRange(yRange=procVarRange)
+        self.procVarGraph.hideAxis('left')
+        self.procVarGraph.showGrid(x=True, y=True, alpha=0.2)
 
         self.nextRow()
 
-        self.contOutGraph = self.addPlot(y=np.zeros([self.nPoints]), labels={'right': "Controller Output", 'bottom': "Time, ms"})
-        if contOutRange != (0, 0):
+        self.contOutGraph = self.addPlot(y=np.zeros([self.nPoints]), labels={'right': "Controller Output", 'bottom': "Time, ms"}, pen=pyqtgraph.mkPen(color='r'))
+        if contOutRange != (0,0):
             self.contOutGraph.setRange(yRange=contOutRange)
+        self.contOutGraph.hideAxis('left')
+        self.contOutGraph.showGrid(x=True, y=True, alpha=0.2)
 
         self.procVarAverLabel = pyqtgraph.ValueLabel(siPrefix=True, suffix='V', averageTime=nPoints*interval)
         self.contOutAverLabel = pyqtgraph.ValueLabel(siPrefix=True, suffix='Parrots', averageTime=nPoints*interval)

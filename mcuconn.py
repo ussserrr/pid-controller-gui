@@ -1,10 +1,12 @@
 import socket
 from random import random
 from time import sleep
+
 from PyQt5.QtCore import QObject, pyqtSignal
 
 
 class MCUconn():
+
     OFFLINE_MODE = False
 
     class Signal(QObject):
