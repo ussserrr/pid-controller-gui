@@ -179,6 +179,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         self.procVarGraph = self.addPlot(y=np.zeros([self.nPoints]), labels={'right': "Process Variable"}, pen=pyqtgraph.mkPen(color='r'))
         if procVarRange != (0,0):
             self.procVarGraph.setRange(yRange=procVarRange)
+        self.procVarGraph.hideButtons()
         self.procVarGraph.hideAxis('left')
         self.procVarGraph.showGrid(x=True, y=True, alpha=0.2)
 
@@ -187,6 +188,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         self.contOutGraph = self.addPlot(y=np.zeros([self.nPoints]), labels={'right': "Controller Output", 'bottom': "Time, ms"}, pen=pyqtgraph.mkPen(color='r'))
         if contOutRange != (0,0):
             self.contOutGraph.setRange(yRange=contOutRange)
+        self.contOutGraph.hideButtons()
         self.contOutGraph.hideAxis('left')
         self.contOutGraph.showGrid(x=True, y=True, alpha=0.2)
 

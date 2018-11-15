@@ -1,0 +1,14 @@
+{
+  "network": {
+    "ip": "192.168.1.110",
+    "port": 1200,
+    "checkInterval": 5000
+  },
+  "appearance": {
+    "theme": "light"
+  },
+  "graphs": {
+    "updateInterval": 17,
+    "numberOfPoints": 200
+  }
+}

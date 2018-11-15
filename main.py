@@ -1,5 +1,8 @@
 import functools
+import json
 import string
+import ipaddress
+import copy
 
 if __name__ == '__main__':
     print('loading...\n')
@@ -7,9 +10,6 @@ if __name__ == '__main__':
 
 import sys
 from numpy import mean as numpy_mean, __version__ as numpy___version__
-from time import time as time_time
-# from matplotlib import __version__ as matplotlib___version__
-matplotlib___version__ = 0.0
 
 from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGroupBox, QLabel, QPushButton,\
                             QApplication, QSpinBox, QStatusBar, QProgressBar, QLineEdit, QCheckBox, QGridLayout,\
@@ -28,12 +28,17 @@ import numpy as np
 
 class SettingsWindow(QWidget):
 
-    def __init__(self, parent=None):
+    def __init__(self, app, parent=None):
 
         super(SettingsWindow, self).__init__(parent)
 
+        self.app = app
+
         self.setWindowTitle("Settings")
         self.setWindowIcon(QIcon('img/settings.png'))
+
+        self.settingsAtStart = copy.deepcopy(app.settings)
+        self.wereReset = False
 
         # self.onlyUGraphRadioButton = QRadioButton("Plot only U(t) graph")
         # self.onlyPIDGraphRadioButton = QRadioButton("Plot only PID-output(t) graph")
@@ -49,18 +54,34 @@ class SettingsWindow(QWidget):
 
 
         networkGroupBox = QGroupBox("Controller connection")
-        networkHBox = QHBoxLayout()
-        networkGroupBox.setLayout(networkHBox)
+        networkVBox = QVBoxLayout()
+        networkGroupBox.setLayout(networkVBox)
 
-        self.ipLineEdit = QLineEdit(contIP)
-        self.portLineEdit = QLineEdit(str(contPort))
-        networkHBox.addWidget(self.ipLineEdit)
-        networkHBox.addWidget(self.portLineEdit)
+        networkHBox1 = QHBoxLayout()
+        self.ipLineEdit = QLineEdit(self.app.settings['network']['ip'])
+        self.portLineEdit = QLineEdit(str(self.app.settings['network']['port']))
+        networkHBox1.addWidget(QLabel("IP address:"))
+        networkHBox1.addWidget(self.ipLineEdit)
+        networkHBox1.addWidget(QLabel("UDP port:"))
+        networkHBox1.addWidget(self.portLineEdit)
+
+        networkHBox2 = QHBoxLayout()
+        self.connCheckIntervalSpinBox = QSpinBox()
+        self.connCheckIntervalSpinBox.setSuffix(" ms")
+        self.connCheckIntervalSpinBox.setMinimum(10)
+        self.connCheckIntervalSpinBox.setMaximum(1e9)
+        self.connCheckIntervalSpinBox.setSingleStep(1000)
+        self.connCheckIntervalSpinBox.setValue(self.app.settings['network']['checkInterval'])
+        networkHBox2.addWidget(QLabel("Checks interval:"))
+        networkHBox2.addWidget(self.connCheckIntervalSpinBox)
+
+        networkVBox.addLayout(networkHBox1)
+        networkVBox.addLayout(networkHBox2)
 
 
 
-        themeHBox = QHBoxLayout()
         themeGroupBox = QGroupBox('Theme')
+        themeHBox = QHBoxLayout()
         themeGroupBox.setLayout(themeHBox)
 
         self.themeLightRadioButton = QRadioButton('Light')
@@ -69,49 +90,119 @@ class SettingsWindow(QWidget):
         themeButtonGroup.addButton(self.themeLightRadioButton)
         themeButtonGroup.addButton(self.themeDarkRadioButton)
 
-        if theme == 'light':
+        if self.app.settings['appearance']['theme'] == 'light':
             self.themeLightRadioButton.setChecked(True)
         else:
             self.themeDarkRadioButton.setChecked(True)
-        self.themeLightRadioButton.toggled.connect(self.themeSet)
 
         themeHBox.addWidget(self.themeLightRadioButton)
         themeHBox.addWidget(self.themeDarkRadioButton)
 
 
-
         # TODO: graphs settings
+        graphsGroupBox = QGroupBox("Graphics")
+        graphsVBox = QVBoxLayout()
+        graphsGroupBox.setLayout(graphsVBox)
 
+        graphsHBox1 = QHBoxLayout()
+        self.graphsUpdateIntervalSpinBox = QSpinBox()
+        self.graphsUpdateIntervalSpinBox.setSuffix(" ms")
+        self.graphsUpdateIntervalSpinBox.setMinimum(1)
+        self.graphsUpdateIntervalSpinBox.setMaximum(1e9)
+        self.graphsUpdateIntervalSpinBox.setSingleStep(10)
+        self.graphsUpdateIntervalSpinBox.setValue(self.app.settings['graphs']['updateInterval'])
+        graphsHBox1.addWidget(QLabel("Update interval:"))
+        graphsHBox1.addWidget(self.graphsUpdateIntervalSpinBox)
+
+        graphsHBox2 = QHBoxLayout()
+        self.graphsNumberOfPointsSpinBox = QSpinBox()
+        self.graphsNumberOfPointsSpinBox.setMinimum(3)
+        self.graphsNumberOfPointsSpinBox.setMaximum(1e5)
+        self.graphsNumberOfPointsSpinBox.setSingleStep(50)
+        self.graphsNumberOfPointsSpinBox.setValue(self.app.settings['graphs']['numberOfPoints'])
+        graphsHBox2.addWidget(QLabel("Number of points:"))
+        graphsHBox2.addWidget(self.graphsNumberOfPointsSpinBox)
+
+        graphsVBox.addLayout(graphsHBox1)
+        graphsVBox.addLayout(graphsHBox2)
+
+
+        resetSettingsButton = QPushButton("Reset to defaults")
+        resetSettingsButton.clicked.connect(self.resetSettings)
 
 
         grid = QGridLayout()
         self.setLayout(grid)
         grid.addWidget(themeGroupBox)
         grid.addWidget(networkGroupBox)
+        grid.addWidget(graphsGroupBox)
+        grid.addWidget(resetSettingsButton)
+
         # grid.addWidget(restoreLabel)
         # grid.addWidget(restoreButton)
         # grid.addWidget(saveToEEPROMLabel)
         # grid.addWidget(saveToEEPROMButton)
 
 
-    def themeSet(self):
-        if self.themeLightRadioButton.isChecked():
-            theme = 'light'
-        else:
-            theme = 'dark'
-        settings.setValue("appearance/theme", theme)
-        MessageWindow(text="Theme is saved. Please restart the application to take effect.", type='Info')
+    def closeEvent(self, event):
+        if not self.wereReset:
+            self.saveSettings()
 
+
+    def saveSettings(self):
+
+        errors = []
+
+        try:
+            ipaddress.ip_address(self.ipLineEdit.text())
+            self.app.settings['network']['ip'] = self.ipLineEdit.text()
+        except ValueError:
+            errors.append('IP address')
+        try:
+            self.app.settings['network']['port'] = int(self.portLineEdit.text())
+        except ValueError:
+            errors.append('UDP port')
+        self.app.settings['network']['checkInterval'] = self.connCheckIntervalSpinBox.value()
+        if self.themeLightRadioButton.isChecked():
+            self.app.settings['appearance']['theme'] = 'light'
+        else:
+            self.app.settings['appearance']['theme'] = 'dark'
+        self.app.settings['graphs']['updateInterval'] = int(self.graphsUpdateIntervalSpinBox.value())
+        self.app.settings['graphs']['numberOfPoints'] = int(self.graphsNumberOfPointsSpinBox.value())
+
+
+        if self.app.settings == self.settingsAtStart:
+            return
+        else:
+            self.app.saveSettings(self.app.settings)
+            if errors:
+                MessageWindow(text="There were errors during these parameters saving:\n\n\t" + "\n\t".join(errors) +
+                               "\n\nPlease check input data",
+                              type='Error')
+            else:
+                MessageWindow(text="Parameters are successfully saved. Please restart the application to take effects", type='Info')
+
+
+    def resetSettings(self):
+        self.app.persistentSettings.clear()
+        self.app.settings = copy.deepcopy(self.app.defaultSettings)
+        self.app.saveSettings(self.app.defaultSettings)
+        MessageWindow(text="Settings have been reset to their defaults. Please restart the application to take effects", type='Info')
+        self.wereReset = True
+        self.close()
 
 
 class ErrorsSettingsWindow(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, app, parent=None):
         super(ErrorsSettingsWindow, self).__init__(parent)
+
+        self.app = app
+
         self.setWindowTitle("PID errors settings")
         self.setWindowIcon(QIcon('img/set_errors.png'))
 
 
-        self.PerrMin, self.PerrMax = tivaConn.read('PerrLimits')
+        self.PerrMin, self.PerrMax = self.app.conn.read('PerrLimits')
         PerrMinLabel = QLabel("Min:")
         self.PerrMinLineEdit = QLineEdit()
         self.PerrMinLineEdit.setText('{}'.format(self.PerrMin))
@@ -132,7 +223,7 @@ class ErrorsSettingsWindow(QWidget):
         PerrGroupBox.setLayout(hPerrBox)
 
 
-        self.IerrMin, self.IerrMax = tivaConn.read('IerrLimits')
+        self.IerrMin, self.IerrMax = self.app.conn.read('IerrLimits')
         IerrMinLabel = QLabel("Min:")
         self.IerrMinLineEdit = QLineEdit()
         self.IerrMinLineEdit.setText('{}'.format(self.IerrMin))
@@ -174,10 +265,10 @@ class ErrorsSettingsWindow(QWidget):
             if float(self.PerrMaxLineEdit.text())<float(self.PerrMinLineEdit.text()):
                 MessageWindow(text="Upper limit value is less than lower!", type='Error')
             else:
-                tivaConn.write('PerrLimits', float(self.PerrMinLineEdit.text()), float(self.PerrMaxLineEdit.text()))
+                self.app.conn.write('PerrLimits', float(self.PerrMinLineEdit.text()), float(self.PerrMaxLineEdit.text()))
         except ValueError:
             pass
-        self.PerrMin, self.PerrMax = tivaConn.read('PerrLimits')
+        self.PerrMin, self.PerrMax = self.app.conn.read('PerrLimits')
         self.PerrMinLineEdit.setText('{}'.format(self.PerrMin))
         self.PerrMaxLineEdit.setText('{}'.format(self.PerrMax))
 
@@ -187,23 +278,26 @@ class ErrorsSettingsWindow(QWidget):
             if float(self.IerrMaxLineEdit.text())<float(self.IerrMinLineEdit.text()):
                 MessageWindow(text="Upper limit value is less than lower!", type='Error')
             else:
-                tivaConn.write('IerrLimits', float(self.IerrMinLineEdit.text()), float(self.IerrMaxLineEdit.text()))
+                self.app.conn.write('IerrLimits', float(self.IerrMinLineEdit.text()), float(self.IerrMaxLineEdit.text()))
         except ValueError:
             pass
-        self.IerrMin, self.IerrMax = tivaConn.read('IerrLimits')
+        self.IerrMin, self.IerrMax = self.app.conn.read('IerrLimits')
         self.IerrMinLineEdit.setText('{}'.format(self.IerrMin))
         self.IerrMaxLineEdit.setText('{}'.format(self.IerrMax))
 
 
     def resetIerr(self):
-        tivaConn.resetIerr()
-        MessageWindow(text='Success. Current I-error: {}'.format(tivaConn.read('Ierr')[0]), type='Info')
+        self.app.conn.resetIerr()
+        MessageWindow(text='Success. Current I-error: {}'.format(self.app.conn.read('Ierr')[0]), type='Info')
 
 
 
 class AboutWindow(QTabWidget):
-    def __init__(self, parent=None):
+    def __init__(self, app, parent=None):
         super(AboutWindow, self).__init__(parent)
+
+        self.app = app
+
         self.setWindowTitle("Info & about")
         self.setFixedSize(350, 300)
         self.setWindowIcon(QIcon('img/info.png'))
@@ -217,7 +311,7 @@ class AboutWindow(QTabWidget):
 
     def initSysTabUI(self):
         layout = QVBoxLayout()
-        sysTabText = QLabel("IP-address of MCU: {}\nUDP-port: {}".format(contIP, contPort))
+        sysTabText = QLabel("IP-address of MCU: {}\nUDP-port: {}".format(self.app.settings['network']['ip'], self.app.settings['network']['port']))
         sysTabText.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         sysTabText.setWordWrap(True)
         sysTabText.setAlignment(Qt.AlignCenter)
@@ -296,25 +390,27 @@ class ValueGroupBox(QGroupBox):
 
 class CentralWidget(QWidget):
 
-    def __init__(self, parent=None):
+    def __init__(self, app, parent=None):
 
         super(CentralWidget, self).__init__(parent)
 
-        # Group for read/write PID setpoint
-        setpointGroupBox = ValueGroupBox('setpoint', tivaConn)
-        # Group for read/write Kp coefficient
-        KpGroupBox = ValueGroupBox('Kp', tivaConn)
-        # Group for read/write PID Ki coefficient
-        KiGroupBox = ValueGroupBox('Ki', tivaConn)
-        # Group for read/write PID Kd coefficient
-        KdGroupBox = ValueGroupBox('Kd', tivaConn)
+        self.app = app
 
-        self.errorsSettingsWindow = ErrorsSettingsWindow()
+        # Group for read/write PID setpoint
+        self.setpointGroupBox = ValueGroupBox('setpoint', app.conn)
+        # Group for read/write Kp coefficient
+        self.KpGroupBox = ValueGroupBox('Kp', app.conn)
+        # Group for read/write PID Ki coefficient
+        self.KiGroupBox = ValueGroupBox('Ki', app.conn)
+        # Group for read/write PID Kd coefficient
+        self.KdGroupBox = ValueGroupBox('Kd', app.conn)
+
+        self.errorsSettingsWindow = ErrorsSettingsWindow(app)
         # errorsSettingsButton = QPushButton(QIcon('img/set_errors.png'), "Set values of errors...")
         # errorsSettingsButton.clicked.connect(self.errorsSettingsWindow.show)
 
-        self.graphs = CustomGraphicsLayoutWidget(nPoints=200, procVarRange=(0.0, 10.0), contOutRange=(0.0, 10.0),
-                                                 interval=17, theme=theme, start=True)
+        self.graphs = CustomGraphicsLayoutWidget(nPoints=app.settings['graphs']['numberOfPoints'], procVarRange=(0.0, 10.0), contOutRange=(0.0, 10.0),
+                                                 interval=app.settings['graphs']['updateInterval'], theme=app.settings['appearance']['theme'], start=True)
 
         # self.calcAvrgUCheckBox = QCheckBox("Aver. U")
         # self.calcAvrgUCheckBox.setStatusTip("Calculate average voltage in next measurement")
@@ -329,30 +425,12 @@ class CentralWidget(QWidget):
         grid = QGridLayout()
         self.setLayout(grid)
 
-        grid.addWidget(setpointGroupBox, 0, 0, 3, 2)
-        grid.addWidget(KpGroupBox, 3, 0, 3, 2)
-        grid.addWidget(KiGroupBox, 6, 0, 3, 2)
-        grid.addWidget(KdGroupBox, 9, 0, 3, 2)
+        grid.addWidget(self.setpointGroupBox, 0, 0, 3, 2)
+        grid.addWidget(self.KpGroupBox, 3, 0, 3, 2)
+        grid.addWidget(self.KiGroupBox, 6, 0, 3, 2)
+        grid.addWidget(self.KdGroupBox, 9, 0, 3, 2)
 
         grid.addWidget(self.graphs, 0, 2, 14, 4)
-
-        # grid.addWidget(errorsSettingsButton, 12, 0, 1, 2)
-        # grid.setAlignment(errorsSettingsButton, Qt.AlignCenter)
-        #
-        # # restoreLabel = QLabel("Restore all MCU values to values at program start time")
-        # restoreButton = QPushButton("Restore")
-        # restoreButton.setStatusTip("Restore all controller parameters to values at the program start time")
-        # restoreButton.clicked.connect(self.restore)
-        #
-        # # saveToEEPROMLabel = QLabel("Save current controller configuration to EEPROM")
-        # saveToEEPROMButton = QPushButton("Save to EEPROM")
-        # saveToEEPROMButton.setStatusTip("Save current controller configuration to EEPROM")
-        # saveToEEPROMButton.clicked.connect(self.saveToEEPROM)
-        #
-        # grid.addWidget(restoreButton, 13, 0, 1, 2)
-        # grid.setAlignment(restoreButton, Qt.AlignCenter)
-        # grid.addWidget(saveToEEPROMButton, 14, 0, 1, 2)
-        # grid.setAlignment(saveToEEPROMButton, Qt.AlignCenter)
 
 
         avrgUBox = QHBoxLayout()
@@ -366,25 +444,28 @@ class CentralWidget(QWidget):
         grid.addLayout(avrgPIDBox, 13, 0, 1, 2)
 
 
-        # self.plotBox = QVBoxLayout()
-        # self.plotBox.addWidget(self.uGraph)
-        # self.plotBox.addWidget(self.uGraphToolbar)
-        # self.plotBox.setAlignment(self.uGraphToolbar, Qt.AlignCenter)
-        # self.plotBox.addWidget(self.pidGraph)
-        # self.plotBox.addWidget(self.pidGraphToolbar)
-        # self.plotBox.setAlignment(self.pidGraphToolbar, Qt.AlignCenter)
-        #
-        # self.grid.addLayout(self.plotBox, 0, 1, 7, 1)
+
+    def refreshAllPIDvalues(self):
+        self.setpointGroupBox.refreshVal()
+        self.KpGroupBox.refreshVal()
+        self.KiGroupBox.refreshVal()
+        self.KdGroupBox.refreshVal()
+        self.errorsSettingsWindow.PerrMin, self.errorsSettingsWindow.PerrMax = self.app.conn.read('PerrLimits')
+        self.errorsSettingsWindow.PerrMinLineEdit.setText('{}'.format(self.errorsSettingsWindow.PerrMin))
+        self.errorsSettingsWindow.PerrMaxLineEdit.setText('{}'.format(self.errorsSettingsWindow.PerrMax))
+        self.errorsSettingsWindow.IerrMin, self.errorsSettingsWindow.IerrMax = self.app.conn.read('IerrLimits')
+        self.errorsSettingsWindow.IerrMinLineEdit.setText('{}'.format(self.errorsSettingsWindow.IerrMin))
+        self.errorsSettingsWindow.IerrMaxLineEdit.setText('{}'.format(self.errorsSettingsWindow.IerrMax))
 
 
 def restore(conn):
     conn.restoreValues()
-    refreshAllPIDvalues()
+    app.mainWindow.centralWidget.refreshAllPIDvalues()
 
 def saveToEEPROM(conn):
     if conn.saveToEEPROM() == 0:
         MessageWindow(text='Successfully saved', type='Info')
-        refreshAllPIDvalues()
+        app.mainWindow.centralWidget.refreshAllPIDvalues()
     else:
         MessageWindow(text='Saving failed!', type='Error')
 
@@ -393,56 +474,58 @@ def saveToEEPROM(conn):
 
 class MainWindow(QMainWindow):
 
-    def __init__(self, parent=None):
+    def __init__(self, app, parent=None):
 
         super(MainWindow, self).__init__(parent)
+
+        self.app = app
 
         self.setWindowTitle("PID controller GUI")
         self.setWindowIcon(QIcon('img/icon.png'))
 
-        self.centralWidget = CentralWidget()
+        self.centralWidget = CentralWidget(app)
         self.setCentralWidget(self.centralWidget)
 
 
         exitAction = QAction(QIcon('img/exit.png'), 'Exit', self)
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('[Ctrl+Q] Exit application')
-        exitAction.triggered.connect(app.quit)
+        exitAction.triggered.connect(self.app.quit)
 
         infoAction = QAction(QIcon('img/info.png'), 'Info', self)
         infoAction.setShortcut('Ctrl+I')
-        infoAction.setStatusTip('[Ctrl+I] Info & about')
-        self.aboutWindow = AboutWindow()
+        infoAction.setStatusTip('[Ctrl+I] Application Info & About')
+        self.aboutWindow = AboutWindow(app)
         infoAction.triggered.connect(self.aboutWindow.show)
 
         settingsAction = QAction(QIcon('img/settings.png'), 'Settings', self)
         settingsAction.setShortcut('Ctrl+P')
-        settingsAction.setStatusTip('[Ctrl+P] Settings')
-        self.settingsWindow = SettingsWindow()
+        settingsAction.setStatusTip('[Ctrl+P] Application Settings')
+        self.settingsWindow = SettingsWindow(app)
         settingsAction.triggered.connect(self.settingsWindow.show)
 
-        mainToolbar = self.addToolBar('main')
-        mainToolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        mainToolbar.addAction(exitAction)
-        mainToolbar.addAction(infoAction)
-        mainToolbar.addAction(settingsAction)
+        appToolbar = self.addToolBar('app')
+        appToolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        appToolbar.addAction(exitAction)
+        appToolbar.addAction(infoAction)
+        appToolbar.addAction(settingsAction)
 
 
-        errorsLimitsAction = QAction(QIcon(), 'Errors limits', self)
+        errorsLimitsAction = QAction(QIcon("img/set_errors.png"), 'Errors limits', self)
         errorsLimitsAction.setShortcut('E')
         errorsLimitsAction.setStatusTip("[E] Set values of errors limits")
         errorsLimitsAction.triggered.connect(self.centralWidget.errorsSettingsWindow.show)
 
-        restoreValuesAction = QAction(QIcon(), 'Restore controller', self)
+        restoreValuesAction = QAction(QIcon("img/restore.png"), 'Restore controller', self)
         restoreValuesAction.setShortcut('R')
         restoreValuesAction.setStatusTip('[R] Restore all controller parameters to values at the program start time')
-        restoreValuesAction.triggered.connect(functools.partial(restore, tivaConn))
+        restoreValuesAction.triggered.connect(functools.partial(restore, self.app.conn))
 
-        saveToEEPROMAction = QAction(QIcon(), 'Save to EEPROM', self)
+        saveToEEPROMAction = QAction(QIcon("img/eeprom.png"), 'Save to EEPROM', self)
         saveToEEPROMAction.setShortcut('S')
         saveToEEPROMAction.setStatusTip("[S] Save current controller configuration to EEPROM")
         # saveToEEPROMAction.triggered.connect(self.centralWidget.saveToEEPROM)
-        saveToEEPROMAction.triggered.connect(functools.partial(saveToEEPROM, tivaConn))
+        saveToEEPROMAction.triggered.connect(functools.partial(saveToEEPROM, self.app.conn))
 
         contToolbar = self.addToolBar('controller')
         contToolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
@@ -469,7 +552,7 @@ class MainWindow(QMainWindow):
         mainMenu.addAction(infoAction)
         mainMenu.addAction(settingsAction)
 
-        if DEMO_MODE:
+        if self.app.DEMO_MODE:
             self.statusBar().addWidget(QLabel("<font color='red'>Demo mode</font>"))
 
     def playpauseGraphs(self):
@@ -481,37 +564,114 @@ class MainWindow(QMainWindow):
 
 
 
-def checkConnectionTimerHandler():
-    if tivaConn.checkConnection():
-        connLostHandler()
-    else:
-        if tivaConn.OFFLINE_MODE:
-            tivaConn.OFFLINE_MODE = False
-            refreshAllPIDvalues()
-            mainWindow.statusBar().removeWidget(connLostStatusBarLabel)
-            mainWindow.statusBar().showMessage('Reconnected')
+# def connCheckTimerHandler():
+#     if tivaConn.checkConnection():
+#         connLostHandler()
+#     else:
+#         if tivaConn.OFFLINE_MODE:
+#             tivaConn.OFFLINE_MODE = False
+#             refreshAllPIDvalues()
+#             mainWindow.statusBar().removeWidget(connLostStatusBarLabel)
+#             mainWindow.statusBar().showMessage('Reconnected')
+#
+#
+# # handler function for connLost slot
+# def connLostHandler():
+#     if not tivaConn.OFFLINE_MODE:
+#         tivaConn.OFFLINE_MODE = True
+#         mainWindow.statusBar().addWidget(connLostStatusBarLabel)
+#         MessageWindow(text='Connection was lost. App going to Offline mode and will be trying to reconnect', type='Warning')
+#
+#
+# def refreshAllPIDvalues():
+#     mainWindow.centralWidget.setpointGroupBox.refreshVal()
+#     mainWindow.centralWidget.KpGroupBox.refreshVal()
+#     mainWindow.centralWidget.KiGroupBox.refreshVal()
+#     mainWindow.centralWidget.KdGroupBox.refreshVal()
+#     mainWindow.centralWidget.errorsSettingsWindow.PerrMin, mainWindow.centralWidget.errorsSettingsWindow.PerrMax = tivaConn.read('PerrLimits')
+#     mainWindow.centralWidget.errorsSettingsWindow.PerrMinLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.PerrMin))
+#     mainWindow.centralWidget.errorsSettingsWindow.PerrMaxLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.PerrMax))
+#     mainWindow.centralWidget.errorsSettingsWindow.IerrMin, mainWindow.centralWidget.errorsSettingsWindow.IerrMax = tivaConn.read('IerrLimits')
+#     mainWindow.centralWidget.errorsSettingsWindow.IerrMinLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.IerrMin))
+#     mainWindow.centralWidget.errorsSettingsWindow.IerrMaxLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.IerrMax))
 
 
-# handler function for connLost slot
-def connLostHandler():
-    if not tivaConn.OFFLINE_MODE:
-        tivaConn.OFFLINE_MODE = True
-        mainWindow.statusBar().addWidget(connLostStatusBarLabel)
-        MessageWindow(text='Connection was lost. App going to Offline mode and will be trying to reconnect', type='Warning')
 
 
-def refreshAllPIDvalues():
-    mainWindow.centralWidget.setpointGroupBox.refreshVal()
-    mainWindow.centralWidget.KpGroupBox.refreshVal()
-    mainWindow.centralWidget.KiGroupBox.refreshVal()
-    mainWindow.centralWidget.KdGroupBox.refreshVal()
-    mainWindow.centralWidget.errorsSettingsWindow.PerrMin, mainWindow.centralWidget.errorsSettingsWindow.PerrMax = tivaConn.read('PerrLimits')
-    mainWindow.centralWidget.errorsSettingsWindow.PerrMinLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.PerrMin))
-    mainWindow.centralWidget.errorsSettingsWindow.PerrMaxLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.PerrMax))
-    mainWindow.centralWidget.errorsSettingsWindow.IerrMin, mainWindow.centralWidget.errorsSettingsWindow.IerrMax = tivaConn.read('IerrLimits')
-    mainWindow.centralWidget.errorsSettingsWindow.IerrMinLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.IerrMin))
-    mainWindow.centralWidget.errorsSettingsWindow.IerrMaxLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.IerrMax))
+class MainApplication(QApplication):
 
+    def __init__(self, argv):
+
+        super(MainApplication, self).__init__(argv)
+
+        with open('defaultSettings.json', mode='r') as defaultSettingsJSONFile:
+            self.defaultSettings = json.load(defaultSettingsJSONFile)
+
+        self.persistentSettings = QSettings()
+
+        self.settings = self.retrieveSettings()
+
+        # self.persistentSettings.clear()
+        # self.contIP = self.persistentSettings.value("network/ip", type=str, defaultValue='192.168.1.110')
+        # self.contPort = self.persistentSettings.value("network/port", type=int, defaultValue=1200)
+        # self.connCheckInterval = self.persistentSettings.value("network/checkInterval", type=int, defaultValue=5000)
+        # self.theme = self.persistentSettings.value("appearance/theme", type=str, defaultValue='light')
+        # self.graphsUpdateInterval = self.persistentSettings.value("graphs/updateInterval", type=int, defaultValue=17)
+        # self.graphsNumberOfPoints = self.persistentSettings.value("graphs/numberOfPoints", type=int, defaultValue=200)
+        # if not self.persistentSettings.contains("network/ip"):
+        #     self.saveSettings()
+
+        if self.settings['appearance']['theme'] == 'dark':
+            self.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+
+        self.conn = MCUconn(self.settings['network']['ip'], self.settings['network']['port'])
+        self.DEMO_MODE = False
+        if self.conn.checkConnection() != 0:
+            self.DEMO_MODE = True
+            self.conn.OFFLINE_MODE = True
+            print("\nDemo mode entered")
+        else:
+            # if connection is present and no demo mode then create timer for connection checking
+            connCheckTimer = QTimer()
+            connCheckTimer.timeout.connect(self.connCheckTimerHandler)
+            connCheckTimer.start(self.settings['network']['checkInterval'])  # every 5 seconds
+            # also create handler function for connection lost (for example, when reading some coefficient from MCU)
+            self.conn.connLost.signal.connect(self.connLostHandler)
+
+        self.conn.saveCurrentValues()
+
+        self.mainWindow = MainWindow(self)
+        self.mainWindow.show()
+
+
+    def retrieveSettings(self):
+        if not self.persistentSettings.contains("settings"):
+            self.persistentSettings.clear()
+            self.saveSettings(self.defaultSettings)
+            return copy.deepcopy(self.defaultSettings)
+        else:
+            return self.persistentSettings.value("settings", type=dict)
+
+
+    def saveSettings(self, settings):
+        self.persistentSettings.setValue('settings', settings)
+
+    def connCheckTimerHandler(self):
+        if self.conn.checkConnection():
+            self.connLostHandler()
+        else:
+            if self.conn.OFFLINE_MODE:
+                self.conn.OFFLINE_MODE = False
+                self.mainWindow.centralWidget.refreshAllPIDvalues()
+                self.mainWindow.statusBar().removeWidget(connLostStatusBarLabel)
+                self.mainWindow.statusBar().showMessage('Reconnected')
+
+    # handler function for connLost slot
+    def connLostHandler(self):
+        if not self.conn.OFFLINE_MODE:
+            self.conn.OFFLINE_MODE = True
+            self.mainWindow.statusBar().addWidget(connLostStatusBarLabel)
+            MessageWindow(text='Connection was lost. App going to Offline mode and will be trying to reconnect', type='Warning')
 
 
 
@@ -520,47 +680,12 @@ if __name__ == '__main__':
     aboutInfo = "la"
 
     ORGANIZATION_NAME = 'Andrey Chufyrev'
-    APPLICATION_NAME = 'PID GUI'
+    APPLICATION_NAME = 'PID controller GUI'
     QCoreApplication.setOrganizationName(ORGANIZATION_NAME)
     QCoreApplication.setApplicationName(APPLICATION_NAME)
 
+    app = MainApplication(sys.argv)
 
-    settings = QSettings()
-
-    contIP = settings.value("network/ip", type=str, defaultValue='192.168.1.110')
-    contPort = settings.value("network/port", type=int, defaultValue=1200)
-    theme = settings.value("appearance/theme", type=str, defaultValue='light')
-    if not settings.contains("network/ip"):
-        settings.setValue("network/ip", contIP)
-        settings.setValue("network/port", contPort)
-        settings.setValue("appearance/theme", theme)
-
-    app = QApplication(sys.argv)
-    if theme == 'dark':
-        # TODO: maybe import qdarkstyle only there (need to see pyinstaller capabilities)
-        app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-
-    tivaConn = MCUconn(contIP, contPort)
-    # widget for showing in statusbar when connection lost
     connLostStatusBarLabel = QLabel("<font color='red'>Connection was lost. Trying to reconnect...</font>")
-    DEMO_MODE = False
-    if tivaConn.checkConnection():
-        tivaConn.OFFLINE_MODE = True
-        DEMO_MODE = True
-        print("\nDemo mode entered")
-        # MessageWindow(text="Due to no connection to regulator the application will start in Demo mode. All values are random. "\
-        #                    "To exit Demo mode please restart the application.")
-    else:
-        # if connection is present and no demo mode then create timer for connection checking
-        checkConnectionTimer = QTimer()
-        checkConnectionTimer.timeout.connect(checkConnectionTimerHandler)
-        checkConnectionTimer.start(5000)  # every 5 seconds
-        # also create handler function for connection lost (for example, when reading some coefficient from MCU)
-        tivaConn.connLost.signal.connect(connLostHandler)
-    # save values for restoring
-    tivaConn.saveCurrentValues()
-
-    mainWindow = MainWindow()
-    mainWindow.show()
 
     sys.exit(app.exec_())
