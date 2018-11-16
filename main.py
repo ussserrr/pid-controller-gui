@@ -1,15 +1,10 @@
 import functools
-import json
+# import json
 import string
 import ipaddress
 import copy
 
-if __name__ == '__main__':
-    print('loading...\n')
-    __version__ = 'zeta'
-
 import sys
-from numpy import mean as numpy_mean, __version__ as numpy___version__
 
 from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGroupBox, QLabel, QPushButton,\
                             QApplication, QSpinBox, QStatusBar, QProgressBar, QLineEdit, QCheckBox, QGridLayout,\
@@ -21,175 +16,10 @@ import qdarkstyle
 
 from miscgraphics import PicButton, MessageWindow, CustomGraphicsLayoutWidget
 from mcuconn import MCUconn
+from settings import Settings, SettingsWindow
 
 import numpy as np
 
-
-
-class SettingsWindow(QWidget):
-
-    def __init__(self, app, parent=None):
-
-        super(SettingsWindow, self).__init__(parent)
-
-        self.app = app
-
-        self.setWindowTitle("Settings")
-        self.setWindowIcon(QIcon('img/settings.png'))
-
-        self.settingsAtStart = copy.deepcopy(app.settings)
-        self.wereReset = False
-
-        # self.onlyUGraphRadioButton = QRadioButton("Plot only U(t) graph")
-        # self.onlyPIDGraphRadioButton = QRadioButton("Plot only PID-output(t) graph")
-        # self.bothGraphsRadioButton = QRadioButton("Plot both graphs concurrently")
-        # self.bothGraphsRadioButton.setChecked(True)
-
-        # chooseNumberOfGraphsVBox = QVBoxLayout()
-        # chooseNumberOfGraphsVBox.addWidget(self.onlyUGraphRadioButton)
-        # chooseNumberOfGraphsVBox.addWidget(self.onlyPIDGraphRadioButton)
-        # chooseNumberOfGraphsVBox.addWidget(self.bothGraphsRadioButton)
-        # chooseNumberOfGraphsGroupBox = QGroupBox("Graphs to plot:")
-        # chooseNumberOfGraphsGroupBox.setLayout(chooseNumberOfGraphsVBox)
-
-
-        networkGroupBox = QGroupBox("Controller connection")
-        networkVBox = QVBoxLayout()
-        networkGroupBox.setLayout(networkVBox)
-
-        networkHBox1 = QHBoxLayout()
-        self.ipLineEdit = QLineEdit(self.app.settings['network']['ip'])
-        self.portLineEdit = QLineEdit(str(self.app.settings['network']['port']))
-        networkHBox1.addWidget(QLabel("IP address:"))
-        networkHBox1.addWidget(self.ipLineEdit)
-        networkHBox1.addWidget(QLabel("UDP port:"))
-        networkHBox1.addWidget(self.portLineEdit)
-
-        networkHBox2 = QHBoxLayout()
-        self.connCheckIntervalSpinBox = QSpinBox()
-        self.connCheckIntervalSpinBox.setSuffix(" ms")
-        self.connCheckIntervalSpinBox.setMinimum(10)
-        self.connCheckIntervalSpinBox.setMaximum(1e9)
-        self.connCheckIntervalSpinBox.setSingleStep(1000)
-        self.connCheckIntervalSpinBox.setValue(self.app.settings['network']['checkInterval'])
-        networkHBox2.addWidget(QLabel("Checks interval:"))
-        networkHBox2.addWidget(self.connCheckIntervalSpinBox)
-
-        networkVBox.addLayout(networkHBox1)
-        networkVBox.addLayout(networkHBox2)
-
-
-
-        themeGroupBox = QGroupBox('Theme')
-        themeHBox = QHBoxLayout()
-        themeGroupBox.setLayout(themeHBox)
-
-        self.themeLightRadioButton = QRadioButton('Light')
-        self.themeDarkRadioButton = QRadioButton('Dark')
-        themeButtonGroup = QButtonGroup(themeGroupBox)
-        themeButtonGroup.addButton(self.themeLightRadioButton)
-        themeButtonGroup.addButton(self.themeDarkRadioButton)
-
-        if self.app.settings['appearance']['theme'] == 'light':
-            self.themeLightRadioButton.setChecked(True)
-        else:
-            self.themeDarkRadioButton.setChecked(True)
-
-        themeHBox.addWidget(self.themeLightRadioButton)
-        themeHBox.addWidget(self.themeDarkRadioButton)
-
-
-        # TODO: graphs settings
-        graphsGroupBox = QGroupBox("Graphics")
-        graphsVBox = QVBoxLayout()
-        graphsGroupBox.setLayout(graphsVBox)
-
-        graphsHBox1 = QHBoxLayout()
-        self.graphsUpdateIntervalSpinBox = QSpinBox()
-        self.graphsUpdateIntervalSpinBox.setSuffix(" ms")
-        self.graphsUpdateIntervalSpinBox.setMinimum(1)
-        self.graphsUpdateIntervalSpinBox.setMaximum(1e9)
-        self.graphsUpdateIntervalSpinBox.setSingleStep(10)
-        self.graphsUpdateIntervalSpinBox.setValue(self.app.settings['graphs']['updateInterval'])
-        graphsHBox1.addWidget(QLabel("Update interval:"))
-        graphsHBox1.addWidget(self.graphsUpdateIntervalSpinBox)
-
-        graphsHBox2 = QHBoxLayout()
-        self.graphsNumberOfPointsSpinBox = QSpinBox()
-        self.graphsNumberOfPointsSpinBox.setMinimum(3)
-        self.graphsNumberOfPointsSpinBox.setMaximum(1e5)
-        self.graphsNumberOfPointsSpinBox.setSingleStep(50)
-        self.graphsNumberOfPointsSpinBox.setValue(self.app.settings['graphs']['numberOfPoints'])
-        graphsHBox2.addWidget(QLabel("Number of points:"))
-        graphsHBox2.addWidget(self.graphsNumberOfPointsSpinBox)
-
-        graphsVBox.addLayout(graphsHBox1)
-        graphsVBox.addLayout(graphsHBox2)
-
-
-        resetSettingsButton = QPushButton("Reset to defaults")
-        resetSettingsButton.clicked.connect(self.resetSettings)
-
-
-        grid = QGridLayout()
-        self.setLayout(grid)
-        grid.addWidget(themeGroupBox)
-        grid.addWidget(networkGroupBox)
-        grid.addWidget(graphsGroupBox)
-        grid.addWidget(resetSettingsButton)
-
-        # grid.addWidget(restoreLabel)
-        # grid.addWidget(restoreButton)
-        # grid.addWidget(saveToEEPROMLabel)
-        # grid.addWidget(saveToEEPROMButton)
-
-
-    def closeEvent(self, event):
-        if not self.wereReset:
-            self.saveSettings()
-
-
-    def saveSettings(self):
-
-        errors = []
-
-        try:
-            ipaddress.ip_address(self.ipLineEdit.text())
-            self.app.settings['network']['ip'] = self.ipLineEdit.text()
-        except ValueError:
-            errors.append('IP address')
-        try:
-            self.app.settings['network']['port'] = int(self.portLineEdit.text())
-        except ValueError:
-            errors.append('UDP port')
-        self.app.settings['network']['checkInterval'] = self.connCheckIntervalSpinBox.value()
-        if self.themeLightRadioButton.isChecked():
-            self.app.settings['appearance']['theme'] = 'light'
-        else:
-            self.app.settings['appearance']['theme'] = 'dark'
-        self.app.settings['graphs']['updateInterval'] = int(self.graphsUpdateIntervalSpinBox.value())
-        self.app.settings['graphs']['numberOfPoints'] = int(self.graphsNumberOfPointsSpinBox.value())
-
-
-        if self.app.settings == self.settingsAtStart:
-            return
-        else:
-            self.app.saveSettings(self.app.settings)
-            if errors:
-                MessageWindow(text="There were errors during these parameters saving:\n\n\t" + "\n\t".join(errors) +
-                               "\n\nPlease check input data",
-                              type='Error')
-            else:
-                MessageWindow(text="Parameters are successfully saved. Please restart the application to take effects", type='Info')
-
-
-    def resetSettings(self):
-        self.app.persistentSettings.clear()
-        self.app.settings = copy.deepcopy(self.app.defaultSettings)
-        self.app.saveSettings(self.app.defaultSettings)
-        MessageWindow(text="Settings have been reset to their defaults. Please restart the application to take effects", type='Info')
-        self.wereReset = True
-        self.close()
 
 
 class ErrorsSettingsWindow(QWidget):
@@ -597,29 +427,13 @@ class MainWindow(QMainWindow):
 
 
 
-
 class MainApplication(QApplication):
 
     def __init__(self, argv):
 
         super(MainApplication, self).__init__(argv)
 
-        with open('defaultSettings.json', mode='r') as defaultSettingsJSONFile:
-            self.defaultSettings = json.load(defaultSettingsJSONFile)
-
-        self.persistentSettings = QSettings()
-
-        self.settings = self.retrieveSettings()
-
-        # self.persistentSettings.clear()
-        # self.contIP = self.persistentSettings.value("network/ip", type=str, defaultValue='192.168.1.110')
-        # self.contPort = self.persistentSettings.value("network/port", type=int, defaultValue=1200)
-        # self.connCheckInterval = self.persistentSettings.value("network/checkInterval", type=int, defaultValue=5000)
-        # self.theme = self.persistentSettings.value("appearance/theme", type=str, defaultValue='light')
-        # self.graphsUpdateInterval = self.persistentSettings.value("graphs/updateInterval", type=int, defaultValue=17)
-        # self.graphsNumberOfPoints = self.persistentSettings.value("graphs/numberOfPoints", type=int, defaultValue=200)
-        # if not self.persistentSettings.contains("network/ip"):
-        #     self.saveSettings()
+        self.settings = Settings(defaults='defaultSettings.json')
 
         if self.settings['appearance']['theme'] == 'dark':
             self.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
@@ -643,18 +457,6 @@ class MainApplication(QApplication):
         self.mainWindow = MainWindow(self)
         self.mainWindow.show()
 
-
-    def retrieveSettings(self):
-        if not self.persistentSettings.contains("settings"):
-            self.persistentSettings.clear()
-            self.saveSettings(self.defaultSettings)
-            return copy.deepcopy(self.defaultSettings)
-        else:
-            return self.persistentSettings.value("settings", type=dict)
-
-
-    def saveSettings(self, settings):
-        self.persistentSettings.setValue('settings', settings)
 
     def connCheckTimerHandler(self):
         if self.conn.checkConnection():
