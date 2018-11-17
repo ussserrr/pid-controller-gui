@@ -4,7 +4,7 @@ import ipaddress
 
 from PyQt5.QtCore import QSettings
 from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGridLayout, QGroupBox, QLabel, QPushButton, QLineEdit, QSpinBox, QButtonGroup
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QIntValidator
 
 from miscgraphics import MessageWindow
 
@@ -30,7 +30,7 @@ class Settings(dict):
 
         if not self.persistentStorage.contains("settings"):
             print("No settings, clear all, use default...")
-            print(len(self.persistentStorage.allKeys()))
+            # print(len(self.persistentStorage.allKeys()))
             self.persistentStorage.endGroup()
             self.persistentStorage.clear()
 
@@ -39,7 +39,7 @@ class Settings(dict):
             # return copy.deepcopy(self.defaultSettings)
         else:
             print("Restore from NV-storage")
-            print(len(self.persistentStorage.allKeys()))
+            # print(len(self.persistentStorage.allKeys()))
             self.update(self.persistentStorage.value("settings", type=dict))
             self.persistentStorage.endGroup()
             # return self.persistentStorage.value("settings", type=dict)
@@ -69,10 +69,8 @@ class SettingsWindow(QWidget):
         self.setWindowTitle("Settings")
         self.setWindowIcon(QIcon('img/settings.png'))
 
-        self.settingsAtStart = copy.deepcopy(app.settings)
-
-        self.wereReset = False
-        self.isFirstShow = True
+        # self.wereReset = False
+        # self.isFirstShow = True
 
         # self.onlyUGraphRadioButton = QRadioButton("Plot only U(t) graph")
         # self.onlyPIDGraphRadioButton = QRadioButton("Plot only PID-output(t) graph")
@@ -93,7 +91,10 @@ class SettingsWindow(QWidget):
 
         networkHBox1 = QHBoxLayout()
         self.ipLineEdit = QLineEdit()
+        self.ipLineEdit.setInputMask("000.000.000.000;_")
         self.portLineEdit = QLineEdit()
+        self.portLineEdit.setValidator(QIntValidator(0, 65535))
+        # self.portLineEdit.setInputMask("90000")
         networkHBox1.addWidget(QLabel("IP address:"))
         networkHBox1.addWidget(self.ipLineEdit)
         networkHBox1.addWidget(QLabel("UDP port:"))
@@ -105,13 +106,11 @@ class SettingsWindow(QWidget):
         self.connCheckIntervalSpinBox.setMinimum(10)
         self.connCheckIntervalSpinBox.setMaximum(1e9)
         self.connCheckIntervalSpinBox.setSingleStep(1000)
-        # self.connCheckIntervalSpinBox.setValue(self.app.settings['network']['checkInterval'])
         networkHBox2.addWidget(QLabel("Checks interval:"))
         networkHBox2.addWidget(self.connCheckIntervalSpinBox)
 
         networkVBox.addLayout(networkHBox1)
         networkVBox.addLayout(networkHBox2)
-
 
 
         themeGroupBox = QGroupBox('Theme')
@@ -123,11 +122,6 @@ class SettingsWindow(QWidget):
         themeButtonGroup = QButtonGroup(themeGroupBox)
         themeButtonGroup.addButton(self.themeLightRadioButton)
         themeButtonGroup.addButton(self.themeDarkRadioButton)
-
-        # if self.app.settings['appearance']['theme'] == 'light':
-        #     self.themeLightRadioButton.setChecked(True)
-        # else:
-        #     self.themeDarkRadioButton.setChecked(True)
 
         themeHBox.addWidget(self.themeLightRadioButton)
         themeHBox.addWidget(self.themeDarkRadioButton)
@@ -143,7 +137,6 @@ class SettingsWindow(QWidget):
         self.graphsUpdateIntervalSpinBox.setMinimum(1)
         self.graphsUpdateIntervalSpinBox.setMaximum(1e9)
         self.graphsUpdateIntervalSpinBox.setSingleStep(10)
-        # self.graphsUpdateIntervalSpinBox.setValue(self.app.settings['graphs']['updateInterval'])
         graphsHBox1.addWidget(QLabel("Update interval:"))
         graphsHBox1.addWidget(self.graphsUpdateIntervalSpinBox)
 
@@ -152,7 +145,6 @@ class SettingsWindow(QWidget):
         self.graphsNumberOfPointsSpinBox.setMinimum(3)
         self.graphsNumberOfPointsSpinBox.setMaximum(1e5)
         self.graphsNumberOfPointsSpinBox.setSingleStep(50)
-        # self.graphsNumberOfPointsSpinBox.setValue(self.app.settings['graphs']['numberOfPoints'])
         graphsHBox2.addWidget(QLabel("Number of points:"))
         graphsHBox2.addWidget(self.graphsNumberOfPointsSpinBox)
 
@@ -188,18 +180,20 @@ class SettingsWindow(QWidget):
 
 
     def show(self):
+        self.settingsAtStart = copy.deepcopy(self.app.settings)
         self.updateDisplayingValues()
         super(SettingsWindow, self).show()
 
 
     def closeEvent(self, event):
-        if not self.wereReset:
-            self.saveSettings()
-        else:
-            if self.isFirstShow:
-                self.isFirstShow = False
-            else:
-                MessageWindow(text="Settings have been reset earlier, please restart the application first to edit them")
+        self.saveSettings()
+        # if not self.wereReset:
+        #     self.saveSettings()
+        # else:
+        #     if self.isFirstShow:
+        #         self.isFirstShow = False
+        #     else:
+        #         MessageWindow(text="Settings have been reset earlier, please restart the application first to edit them")
 
 
     def saveSettings(self):
@@ -212,10 +206,12 @@ class SettingsWindow(QWidget):
             self.app.settings['network']['ip'] = self.ipLineEdit.text()
         except ValueError:
             errors.append('IP address')
+        # self.app.settings['network']['ip'] = self.ipLineEdit.text()
         try:
             self.app.settings['network']['port'] = int(self.portLineEdit.text())
         except ValueError:
             errors.append('UDP port')
+        # self.app.settings['network']['port'] = int(self.portLineEdit.text())
         self.app.settings['network']['checkInterval'] = self.connCheckIntervalSpinBox.value()
         if self.themeLightRadioButton.isChecked():
             self.app.settings['appearance']['theme'] = 'light'
@@ -226,22 +222,27 @@ class SettingsWindow(QWidget):
 
 
         if self.app.settings == self.settingsAtStart:  # MB HERE
-            print("settings same as at start")
+            print("settings are same as at start")
+            return
+        elif self.app.settings == self.app.settings.defaults:
+            print("settings are same as default")
             return
         else:
             self.app.settings.save(self.app.settings)  # MB HERE
             if errors:
                 MessageWindow(text="There were errors during these parameters saving:\n\n\t" + "\n\t".join(errors) +
-                               "\n\nPlease check input data",
+                                   "\n\nPlease check input data",
                               type='Error')
             else:
-                MessageWindow(text="Parameters are successfully saved. Please restart the application to take effects", type='Info')
+                MessageWindow(text="Parameters are successfully saved. Please restart the application to take effects",
+                              type='Info')
 
 
     def resetSettings(self):
         self.app.settings.persistentStorage.clear()
-        self.app.settings.update(self.app.settings.defaults)
+        self.app.settings.update(copy.deepcopy(self.app.settings.defaults))
+        self.updateDisplayingValues()
         # self.app.settings.save(self.app.settings.defaults)
         MessageWindow(text="Settings have been reset to their defaults. Please restart the application to take effects", type='Info')
-        self.wereReset = True
+        # self.wereReset = True
         self.close()

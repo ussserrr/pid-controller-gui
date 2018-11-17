@@ -1,5 +1,5 @@
 import socket
-from random import random
+import random
 from time import sleep
 
 from PyQt5.QtCore import QObject, pyqtSignal
@@ -36,8 +36,10 @@ class MCUconn():
                 self.connLost.signal.emit()
                 return ( 0.0, 0.0 )
         else:
-            sleep(0.025)  # fake delay, else too many values
-            return ( random(), random() )
+            # sleep(0.025)  # fake delay, else too many values
+            if coef == 'PerrLimits' or coef == 'IerrLimits':
+                return ( random.uniform(-1000000, 0), random.uniform(0, 1000000) )
+            return ( random.random(), random.random() )
 
         if coef == 'U':
             return ( float(data)*3.3/4095.0, )
@@ -73,7 +75,7 @@ class MCUconn():
 
 
     def write(self, coef, *values):
-        writeString = ''
+        # writeString = ''
 
         # If we want to write some values in MCU
         if coef == 'setpoint':
@@ -94,6 +96,7 @@ class MCUconn():
             writeString = coef
 
         if not self.OFFLINE_MODE:
+            # TODO: return result code (0, 1)
             self.sock.sendto(writeString.encode('utf-8'), (self.IP, self.PORT))
 
 

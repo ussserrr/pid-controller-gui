@@ -1,5 +1,7 @@
-from PyQt5.QtGui import QPainter, QIcon
-from PyQt5.QtWidgets import QMessageBox, QAbstractButton
+import string
+
+from PyQt5.QtGui import QPainter, QIcon, QPixmap
+from PyQt5.QtWidgets import QMessageBox, QAbstractButton, QPushButton, QGroupBox, QLabel, QLineEdit, QHBoxLayout, QVBoxLayout
 from PyQt5.QtCore import QSize, QTimer
 
 import numpy as np
@@ -99,6 +101,62 @@ class MessageWindow(QMessageBox):
         self.setStandardButtons(QMessageBox.Ok)
 
         self.exec_()
+
+
+
+class ValueGroupBox(QGroupBox):
+    """
+
+    """
+
+    def __init__(self, label, conn, parent=None):
+
+        super(ValueGroupBox, self).__init__(parent)
+
+        self.setTitle(f"{label.capitalize()} control")
+
+        self.label = label
+        self.conn = conn
+
+        self.valLabelTemplate = string.Template("Current $label: <b>{:.3f}</b>").safe_substitute(label=label)
+        self.valLabel = QLabel()
+        self.refreshVal()
+        refreshButton = PicButton(QPixmap("img/refresh.png"), QPixmap("img/refresh_hover.png"),
+                                  QPixmap("img/refresh_pressed.png"))
+        refreshButton.clicked.connect(self.refreshVal)
+        refreshButton.setIcon(QIcon("img/refresh.png"))
+        self.writeLine = QLineEdit()
+        self.writeLine.setPlaceholderText(f"Enter new '{label}'")
+        writeButton = QPushButton('Send', self)
+        writeButton.clicked.connect(self.writeButtonClicked)
+
+        hBox1 = QHBoxLayout()
+        hBox1.addWidget(self.valLabel)
+        hBox1.addStretch(1)
+        hBox1.addWidget(refreshButton)
+
+        hBox2 = QHBoxLayout()
+        hBox2.addWidget(self.writeLine)
+        hBox2.addWidget(writeButton)
+
+        vBox1 = QVBoxLayout()
+        vBox1.addLayout(hBox1)
+        vBox1.addLayout(hBox2)
+
+        self.setLayout(vBox1)
+
+
+    def refreshVal(self):
+        self.valLabel.setText(self.valLabelTemplate.format(self.conn.read(self.label)[0]))
+
+
+    def writeButtonClicked(self):
+        try:
+            self.conn.write(self.label, float(self.writeLine.text()))
+        except ValueError:
+            pass
+        self.writeLine.clear()
+        self.refreshVal()
 
 
 

@@ -1,8 +1,4 @@
 import functools
-# import json
-import string
-import ipaddress
-import copy
 
 import sys
 
@@ -14,207 +10,13 @@ from PyQt5.QtCore import QTimer, QCoreApplication, QSettings, Qt, QT_VERSION_STR
 from PyQt5.Qt import PYQT_VERSION_STR
 import qdarkstyle
 
-from miscgraphics import PicButton, MessageWindow, CustomGraphicsLayoutWidget
+from miscgraphics import PicButton, MessageWindow, ValueGroupBox, CustomGraphicsLayoutWidget
 from mcuconn import MCUconn
 from settings import Settings, SettingsWindow
+from errorssettings import ErrorsSettingsWindow
+from about import AboutWindow
 
 import numpy as np
-
-
-
-class ErrorsSettingsWindow(QWidget):
-    def __init__(self, app, parent=None):
-        super(ErrorsSettingsWindow, self).__init__(parent)
-
-        self.app = app
-
-        self.setWindowTitle("PID errors settings")
-        self.setWindowIcon(QIcon('img/set_errors.png'))
-
-
-        self.PerrMin, self.PerrMax = self.app.conn.read('PerrLimits')
-        PerrMinLabel = QLabel("Min:")
-        self.PerrMinLineEdit = QLineEdit()
-        self.PerrMinLineEdit.setText('{}'.format(self.PerrMin))
-        PerrMaxLabel = QLabel("Max:")
-        self.PerrMaxLineEdit = QLineEdit()
-        self.PerrMaxLineEdit.setText('{}'.format(self.PerrMax))
-        PerrLimitsSetButton = QPushButton('Set')
-        PerrLimitsSetButton.clicked.connect(self.setPerrLimits)
-
-        hPerrBox = QHBoxLayout()
-        hPerrBox.addWidget(PerrMinLabel)
-        hPerrBox.addWidget(self.PerrMinLineEdit)
-        hPerrBox.addWidget(PerrMaxLabel)
-        hPerrBox.addWidget(self.PerrMaxLineEdit)
-        hPerrBox.addWidget(PerrLimitsSetButton)
-
-        PerrGroupBox = QGroupBox("Set P error limits")
-        PerrGroupBox.setLayout(hPerrBox)
-
-
-        self.IerrMin, self.IerrMax = self.app.conn.read('IerrLimits')
-        IerrMinLabel = QLabel("Min:")
-        self.IerrMinLineEdit = QLineEdit()
-        self.IerrMinLineEdit.setText('{}'.format(self.IerrMin))
-        IerrMaxLabel = QLabel("Max:")
-        self.IerrMaxLineEdit = QLineEdit()
-        self.IerrMaxLineEdit.setText('{}'.format(self.IerrMax))
-        IerrLimitsSetButton = QPushButton('Set')
-        IerrLimitsSetButton.clicked.connect(self.setIerrLimits)
-
-        resetIerrButton = QPushButton("Reset I error")
-        resetIerrButton.clicked.connect(self.resetIerr)
-
-        hIerrBox1 = QHBoxLayout()
-        hIerrBox1.addWidget(IerrMinLabel)
-        hIerrBox1.addWidget(self.IerrMinLineEdit)
-        hIerrBox1.addWidget(IerrMaxLabel)
-        hIerrBox1.addWidget(self.IerrMaxLineEdit)
-        hIerrBox1.addWidget(IerrLimitsSetButton)
-
-        hIerrBox2 = QHBoxLayout()
-        hIerrBox2.addWidget(resetIerrButton)
-
-        vIerrBox = QVBoxLayout()
-        vIerrBox.addLayout(hIerrBox1)
-        vIerrBox.addLayout(hIerrBox2)
-
-        IerrGroupBox = QGroupBox("Set I error limits")
-        IerrGroupBox.setLayout(vIerrBox)
-
-
-        grid = QGridLayout()
-        self.setLayout(grid)
-        grid.addWidget(PerrGroupBox)
-        grid.addWidget(IerrGroupBox)
-
-
-    def setPerrLimits(self):
-        try:
-            if float(self.PerrMaxLineEdit.text())<float(self.PerrMinLineEdit.text()):
-                MessageWindow(text="Upper limit value is less than lower!", type='Error')
-            else:
-                self.app.conn.write('PerrLimits', float(self.PerrMinLineEdit.text()), float(self.PerrMaxLineEdit.text()))
-        except ValueError:
-            pass
-        self.PerrMin, self.PerrMax = self.app.conn.read('PerrLimits')
-        self.PerrMinLineEdit.setText('{}'.format(self.PerrMin))
-        self.PerrMaxLineEdit.setText('{}'.format(self.PerrMax))
-
-
-    def setIerrLimits(self):
-        try:
-            if float(self.IerrMaxLineEdit.text())<float(self.IerrMinLineEdit.text()):
-                MessageWindow(text="Upper limit value is less than lower!", type='Error')
-            else:
-                self.app.conn.write('IerrLimits', float(self.IerrMinLineEdit.text()), float(self.IerrMaxLineEdit.text()))
-        except ValueError:
-            pass
-        self.IerrMin, self.IerrMax = self.app.conn.read('IerrLimits')
-        self.IerrMinLineEdit.setText('{}'.format(self.IerrMin))
-        self.IerrMaxLineEdit.setText('{}'.format(self.IerrMax))
-
-
-    def resetIerr(self):
-        self.app.conn.resetIerr()
-        MessageWindow(text='Success. Current I-error: {}'.format(self.app.conn.read('Ierr')[0]), type='Info')
-
-
-
-class AboutWindow(QTabWidget):
-    def __init__(self, app, parent=None):
-        super(AboutWindow, self).__init__(parent)
-
-        self.app = app
-
-        self.setWindowTitle("Info & about")
-        self.setFixedSize(350, 300)
-        self.setWindowIcon(QIcon('img/info.png'))
-
-        self.sysTab = QWidget()
-        self.aboutTab = QWidget()
-        self.addTab(self.sysTab, "PID-controller")
-        self.addTab(self.aboutTab, "About")
-        self.initSysTabUI()
-        self.initAboutTabUI()
-
-    def initSysTabUI(self):
-        layout = QVBoxLayout()
-        sysTabText = QLabel("IP-address of MCU: {}\nUDP-port: {}".format(self.app.settings['network']['ip'], self.app.settings['network']['port']))
-        sysTabText.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        sysTabText.setWordWrap(True)
-        sysTabText.setAlignment(Qt.AlignCenter)
-        layout.addWidget(sysTabText)
-        self.sysTab.setLayout(layout)
-        layout.setAlignment(Qt.AlignCenter)
-
-    def initAboutTabUI(self):
-        layout = QVBoxLayout()
-        layout.setSizeConstraint(QLayout.SetMinimumSize)
-        self.aboutTab.setLayout(layout)
-        aboutTabText = QLabel(aboutInfo)
-        aboutTabText.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        aboutTabText.setWordWrap(True)
-        layout.addWidget(aboutTabText)
-        layout.setAlignment(Qt.AlignCenter)
-
-
-
-
-class ValueGroupBox(QGroupBox):
-    """
-
-    """
-
-    def __init__(self, label, conn, parent=None):
-
-        super(ValueGroupBox, self).__init__(parent)
-
-        self.setTitle(f"{label.capitalize()} control")
-
-        self.label = label
-        self.conn = conn
-
-        self.valLabelTemplate = string.Template("Current $label: <b>{:.3f}</b>").safe_substitute(label=label)
-        self.valLabel = QLabel()
-        self.refreshVal()
-        refreshButton = PicButton(QPixmap("img/refresh.png"), QPixmap("img/refresh_hover.png"),
-                                  QPixmap("img/refresh_pressed.png"))
-        refreshButton.clicked.connect(self.refreshVal)
-        refreshButton.setIcon(QIcon("img/refresh.png"))
-        self.writeLine = QLineEdit()
-        self.writeLine.setPlaceholderText(f"Enter new '{label}'")
-        writeButton = QPushButton('Send', self)
-        writeButton.clicked.connect(self.writeButtonClicked)
-
-        hBox1 = QHBoxLayout()
-        hBox1.addWidget(self.valLabel)
-        hBox1.addStretch(1)
-        hBox1.addWidget(refreshButton)
-
-        hBox2 = QHBoxLayout()
-        hBox2.addWidget(self.writeLine)
-        hBox2.addWidget(writeButton)
-
-        vBox1 = QVBoxLayout()
-        vBox1.addLayout(hBox1)
-        vBox1.addLayout(hBox2)
-
-        self.setLayout(vBox1)
-
-
-    def refreshVal(self):
-        self.valLabel.setText(self.valLabelTemplate.format(self.conn.read(self.label)[0]))
-
-
-    def writeButtonClicked(self):
-        try:
-            self.conn.write(self.label, float(self.writeLine.text()))
-        except ValueError:
-            pass
-        self.writeLine.clear()
-        self.refreshVal()
 
 
 
@@ -479,7 +281,6 @@ class MainApplication(QApplication):
 
 if __name__ == '__main__':
 
-    aboutInfo = "la"
 
     ORGANIZATION_NAME = 'Andrey Chufyrev'
     APPLICATION_NAME = 'PID controller GUI'
