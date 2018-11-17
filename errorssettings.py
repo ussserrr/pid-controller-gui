@@ -1,14 +1,15 @@
 import functools
 
 from PyQt5.QtWidgets import QWidget, QGroupBox, QGridLayout, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QPushButton, QStatusBar
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QDoubleValidator
 from PyQt5.QtCore import QTimer
 
-from miscgraphics import MessageWindow
 
 
 valNumOfIntDigits = 7
 valNumOfFracDigits = 3
+
+MSG_TIMEOUT = 5000
 
 
 
@@ -24,45 +25,47 @@ class ErrorsSettingsWindow(QWidget):
         self.setWindowIcon(QIcon('img/set_errors.png'))
 
 
-        # self.lineEdits = {'PerrLimits': QLineEdit(), 'IerrLimits': QLineEdit}
+        self.lineEdits = {
+            'PerrLimits': {
+                'min': QLineEdit(),
+                'max': QLineEdit()
+            },
+            'IerrLimits': {
+                'min': QLineEdit(),
+                'max': QLineEdit()
+            }
+        }
 
+        for d in self.lineEdits.values():
+            for lineEdit in d.values():
+                lineEdit.setValidator(QDoubleValidator())
 
-        # self.PerrMin, self.PerrMax = self.app.conn.read('PerrLimits')
-        self.PerrMinLineEdit = QLineEdit()
-        # self.PerrMinLineEdit.setText(f'{self.PerrMin}')
-        self.PerrMaxLineEdit = QLineEdit()
-        # self.PerrMaxLineEdit.setText(f'{self.PerrMax}')
 
         PerrLimitsSetButton = QPushButton('Set')
-        PerrLimitsSetButton.clicked.connect(self.setPerrLimits)
+        PerrLimitsSetButton.clicked.connect(functools.partial(self.setErrLimits, 'PerrLimits'))
 
         PerrHBox = QHBoxLayout()
         PerrHBox.addWidget(QLabel("Min:"))
-        PerrHBox.addWidget(self.PerrMinLineEdit)
+        PerrHBox.addWidget(self.lineEdits['PerrLimits']['min'])
         PerrHBox.addWidget(QLabel("Max:"))
-        PerrHBox.addWidget(self.PerrMaxLineEdit)
+        PerrHBox.addWidget(self.lineEdits['PerrLimits']['max'])
         PerrHBox.addWidget(PerrLimitsSetButton)
 
         PerrGroupBox = QGroupBox("P error limits")
         PerrGroupBox.setLayout(PerrHBox)
 
 
-        # self.IerrMin, self.IerrMax = self.app.conn.read('IerrLimits')
-        self.IerrMinLineEdit = QLineEdit()
-        # self.IerrMinLineEdit.setText('{}'.format(self.IerrMin))
-        self.IerrMaxLineEdit = QLineEdit()
-        # self.IerrMaxLineEdit.setText('{}'.format(self.IerrMax))
         IerrLimitsSetButton = QPushButton('Set')
-        IerrLimitsSetButton.clicked.connect(self.setIerrLimits)
+        IerrLimitsSetButton.clicked.connect(functools.partial(self.setErrLimits, 'IerrLimits'))
 
         resetIerrButton = QPushButton("Reset I error")
         resetIerrButton.clicked.connect(self.resetIerr)
 
         IerrHBox1 = QHBoxLayout()
         IerrHBox1.addWidget(QLabel("Min:"))
-        IerrHBox1.addWidget(self.IerrMinLineEdit)
+        IerrHBox1.addWidget(self.lineEdits['IerrLimits']['min'])
         IerrHBox1.addWidget(QLabel("Max:"))
-        IerrHBox1.addWidget(self.IerrMaxLineEdit)
+        IerrHBox1.addWidget(self.lineEdits['IerrLimits']['max'])
         IerrHBox1.addWidget(IerrLimitsSetButton)
 
         IerrHBox2 = QHBoxLayout()
@@ -87,7 +90,7 @@ class ErrorsSettingsWindow(QWidget):
 
 
     def show(self):
-        self.updateDisplayingValues('both')
+        self.updateDisplayingValues('PerrLimits', 'IerrLimits')
         super(ErrorsSettingsWindow, self).show()
 
 
@@ -95,55 +98,32 @@ class ErrorsSettingsWindow(QWidget):
         self.statusBar.removeWidget(widget)
 
 
-    def updateDisplayingValues(self, what):
-        if what == 'PerrLimits' or what == 'both':
-            PerrMin, PerrMax = self.app.conn.read('PerrLimits')
+    def updateDisplayingValues(self, *what):
+        for item in what:
+            valMin, valMax = self.app.conn.read(item)
             # TODO: maybe round in MCUconn
-            self.PerrMinLineEdit.setText(f'{round(PerrMin, valNumOfFracDigits)}')
-            self.PerrMaxLineEdit.setText(f'{round(PerrMax, valNumOfFracDigits)}')
-        if what == 'IerrLimits' or what == 'both':
-            IerrMin, IerrMax = self.app.conn.read('IerrLimits')
-            self.IerrMinLineEdit.setText(f'{round(IerrMin, valNumOfFracDigits)}')
-            self.IerrMaxLineEdit.setText(f'{round(IerrMax, valNumOfFracDigits)}')
+            self.lineEdits[item]['min'].setText(f'{round(valMin, valNumOfFracDigits)}')
+            self.lineEdits[item]['max'].setText(f'{round(valMax, valNumOfFracDigits)}')
 
 
-    # def setErrLimits(self, what):
-    #     try:
-    #         warn = False
-    #         if what == 'PerrLimits':
-    #             if float(self.PerrMaxLineEdit.text()) < float(self.PerrMinLineEdit.text()):
-    #                 warn = True
-    #         elif what == 'IerrLimits':
-    #             if float(self.IerrMaxLineEdit.text()) < float(self.IerrMinLineEdit.text()):
-    #                 warn = True
-
-
-
-    def setPerrLimits(self):
+    def setErrLimits(self, what):
         try:
-            if float(self.PerrMaxLineEdit.text()) < float(self.PerrMinLineEdit.text()):
-                warnLabel = QLabel("<font color='red'>Upper limit value is less than lower!</font>")
-                self.statusBar.addWidget(warnLabel)
-                QTimer().singleShot(5000, functools.partial(self.removeStatusBarWidget, warnLabel))
+            valMin = float(self.lineEdits[what]['min'].text())
+            valMax = float(self.lineEdits[what]['max'].text())
+            if valMax < valMin:
+                resultLabel = QLabel("<font color='red'>Upper limit value is less than lower!</font>")
             else:
-                self.app.conn.write('PerrLimits', float(self.PerrMinLineEdit.text()), float(self.PerrMaxLineEdit.text()))
+                self.app.conn.write(what, valMin, valMax)
+                resultLabel = QLabel("Success")
+            self.statusBar.addWidget(resultLabel)
+            QTimer().singleShot(MSG_TIMEOUT, functools.partial(self.removeStatusBarWidget, resultLabel))
         except ValueError:
             pass
-        self.updateDisplayingValues('PerrLimits')
-
-
-    def setIerrLimits(self):
-        try:
-            if float(self.IerrMaxLineEdit.text()) < float(self.IerrMinLineEdit.text()):
-                MessageWindow(text="Upper limit value is less than lower!", type='Error')
-            else:
-                self.app.conn.write('IerrLimits', float(self.IerrMinLineEdit.text()), float(self.IerrMaxLineEdit.text()))
-        except ValueError:
-            pass
-        self.updateDisplayingValues('IerrLimits')
+        self.updateDisplayingValues(what)
 
 
     def resetIerr(self):
         self.app.conn.resetIerr()
-        self.statusBar.showMessage("Ierr has been reset", msecs=5000)
-        # MessageWindow(text='Success. Current I-error: {}'.format(self.app.conn.read('Ierr')[0]), type='Info')
+        infoLabel = QLabel("Ierr has been reset")
+        self.statusBar.addWidget(infoLabel)
+        QTimer().singleShot(MSG_TIMEOUT, functools.partial(self.removeStatusBarWidget, infoLabel))

@@ -25,7 +25,7 @@ class MCUconn():
         self.connLost = self.Signal()
 
 
-    def parser(self, coef):
+    def _parser(self, coef):
         """
         Always return tuple of 1 or 2 floats (string in one case) for standardizing
         """
@@ -54,7 +54,7 @@ class MCUconn():
     def read(self, coef):
         if coef == 'U':
             self.write('u')
-        elif coef == 'PID':
+        elif coef == 'PID':  # TODO: actually, we can calculate this by yourself
             self.write('p')
         elif coef == 'setpoint':
             self.write('spRead')
@@ -71,10 +71,11 @@ class MCUconn():
         elif coef == 'IerrLimits':
             self.write('IerrLIMr')
 
-        return self.parser(coef)
+        return self._parser(coef)
 
 
     def write(self, coef, *values):
+        # TODO: return result code (0, 1)
         # writeString = ''
 
         # If we want to write some values in MCU
@@ -105,6 +106,7 @@ class MCUconn():
 
 
     def saveCurrentValues(self):
+        # TODO: store configuration snapshots (so return the snapshot here and receive a snapshot as an argument at restoreValues())
         self.setpoint = self.read('setpoint')[0]
         self.Kp = self.read('Kp')[0]
         self.Ki = self.read('Ki')[0]
@@ -125,7 +127,7 @@ class MCUconn():
     def saveToEEPROM(self):
         self.write('SaveToEEPROM')
 
-        if self.parser('SaveToEEPROM')[0]=='success':
+        if self._parser('SaveToEEPROM')[0]== 'success':
             return 0
         else:
             return 1
@@ -136,7 +138,8 @@ class MCUconn():
             self.sock.sendto('u'.encode('utf-8'), (self.IP, self.PORT))
             data, addr = self.sock.recvfrom(128)
         except socket.timeout:
+            # TODO: maybe release this socket (i.e. delete it)
             return 1
-        except OSError:
+        except OSError:  # no network at all for this PC
             return 1
         return 0

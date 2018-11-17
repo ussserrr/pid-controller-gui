@@ -36,13 +36,11 @@ class Settings(dict):
 
             # self.save(self.defaults)
             self.update(copy.deepcopy(self.defaults))  # we assume that 'defaults' will not change but for a confidence we make a copy
-            # return copy.deepcopy(self.defaultSettings)
         else:
             print("Restore from NV-storage")
             # print(len(self.persistentStorage.allKeys()))
             self.update(self.persistentStorage.value("settings", type=dict))
             self.persistentStorage.endGroup()
-            # return self.persistentStorage.value("settings", type=dict)
 
 
     def save(self, settings):
@@ -201,7 +199,6 @@ class SettingsWindow(QWidget):
         errors = []
 
         try:
-            # TODO: switch to QLineEdit' built-in method
             ipaddress.ip_address(self.ipLineEdit.text())
             self.app.settings['network']['ip'] = self.ipLineEdit.text()
         except ValueError:

@@ -28,21 +28,23 @@ class CentralWidget(QWidget):
 
         self.app = app
 
-        # Group for read/write PID setpoint
-        self.setpointGroupBox = ValueGroupBox('setpoint', app.conn)
-        # Group for read/write Kp coefficient
-        self.KpGroupBox = ValueGroupBox('Kp', app.conn)
-        # Group for read/write PID Ki coefficient
-        self.KiGroupBox = ValueGroupBox('Ki', app.conn)
-        # Group for read/write PID Kd coefficient
-        self.KdGroupBox = ValueGroupBox('Kd', app.conn)
+        self.contValGroupBoxes = {
+            'setpoint': ValueGroupBox('setpoint', app.conn),
+            'Kp': ValueGroupBox('Kp', app.conn),
+            'Ki': ValueGroupBox('Ki', app.conn),
+            'Kd': ValueGroupBox('Kd', app.conn)
+        }
 
         self.errorsSettingsWindow = ErrorsSettingsWindow(app)
-        # errorsSettingsButton = QPushButton(QIcon('img/set_errors.png'), "Set values of errors...")
-        # errorsSettingsButton.clicked.connect(self.errorsSettingsWindow.show)
 
-        self.graphs = CustomGraphicsLayoutWidget(nPoints=app.settings['graphs']['numberOfPoints'], procVarRange=(0.0, 10.0), contOutRange=(0.0, 10.0),
-                                                 interval=app.settings['graphs']['updateInterval'], theme=app.settings['appearance']['theme'], start=True)
+        self.graphs = CustomGraphicsLayoutWidget(
+            nPoints=app.settings['graphs']['numberOfPoints'],
+            procVarRange=(0.0, 10.0),  # TODO: store as variables or make settings for these
+            contOutRange=(0.0, 10.0),
+            interval=app.settings['graphs']['updateInterval'],
+            theme=app.settings['appearance']['theme'],
+            start=False
+        )
 
         # self.calcAvrgUCheckBox = QCheckBox("Aver. U")
         # self.calcAvrgUCheckBox.setStatusTip("Calculate average voltage in next measurement")
@@ -57,49 +59,50 @@ class CentralWidget(QWidget):
         grid = QGridLayout()
         self.setLayout(grid)
 
-        grid.addWidget(self.setpointGroupBox, 0, 0, 3, 2)
-        grid.addWidget(self.KpGroupBox, 3, 0, 3, 2)
-        grid.addWidget(self.KiGroupBox, 6, 0, 3, 2)
-        grid.addWidget(self.KdGroupBox, 9, 0, 3, 2)
+        # TODO: draw a scheme of this grid in documentation
+        grid.addWidget(self.contValGroupBoxes['setpoint'], 0, 0, 3, 2)
+        grid.addWidget(self.contValGroupBoxes['Kp'], 3, 0, 3, 2)
+        grid.addWidget(self.contValGroupBoxes['Ki'], 6, 0, 3, 2)
+        grid.addWidget(self.contValGroupBoxes['Kd'], 9, 0, 3, 2)
 
         grid.addWidget(self.graphs, 0, 2, 14, 4)
 
 
-        avrgUBox = QHBoxLayout()
-        avrgUBox.addWidget(QLabel("Process Variable:"))
-        avrgUBox.addWidget(self.avrgULabel)
-        grid.addLayout(avrgUBox, 12, 0, 1, 2)
+        avrgUHBox = QHBoxLayout()
+        avrgUHBox.addWidget(QLabel("Process Variable:"))
+        avrgUHBox.addWidget(self.avrgULabel)
+        grid.addLayout(avrgUHBox, 12, 0, 1, 2)
 
-        avrgPIDBox = QHBoxLayout()
-        avrgPIDBox.addWidget(QLabel("Controller Output:"))
-        avrgPIDBox.addWidget(self.avrgPIDLabel)
-        grid.addLayout(avrgPIDBox, 13, 0, 1, 2)
-
+        avrgPIDHBox = QHBoxLayout()
+        avrgPIDHBox.addWidget(QLabel("Controller Output:"))
+        avrgPIDHBox.addWidget(self.avrgPIDLabel)
+        grid.addLayout(avrgPIDHBox, 13, 0, 1, 2)
 
 
     def refreshAllPIDvalues(self):
-        self.setpointGroupBox.refreshVal()
-        self.KpGroupBox.refreshVal()
-        self.KiGroupBox.refreshVal()
-        self.KdGroupBox.refreshVal()
-        self.errorsSettingsWindow.PerrMin, self.errorsSettingsWindow.PerrMax = self.app.conn.read('PerrLimits')
-        self.errorsSettingsWindow.PerrMinLineEdit.setText('{}'.format(self.errorsSettingsWindow.PerrMin))
-        self.errorsSettingsWindow.PerrMaxLineEdit.setText('{}'.format(self.errorsSettingsWindow.PerrMax))
-        self.errorsSettingsWindow.IerrMin, self.errorsSettingsWindow.IerrMax = self.app.conn.read('IerrLimits')
-        self.errorsSettingsWindow.IerrMinLineEdit.setText('{}'.format(self.errorsSettingsWindow.IerrMin))
-        self.errorsSettingsWindow.IerrMaxLineEdit.setText('{}'.format(self.errorsSettingsWindow.IerrMax))
+        for groupBox in self.contValGroupBoxes.values():
+            groupBox.refreshVal()
+        # self.setpointGroupBox.refreshVal()
+        # self.KpGroupBox.refreshVal()
+        # self.KiGroupBox.refreshVal()
+        # self.KdGroupBox.refreshVal()
+        self.errorsSettingsWindow.updateDisplayingValues('PerrLimits', 'IerrLimits')
 
 
-def restore(conn):
-    conn.restoreValues()
-    app.mainWindow.centralWidget.refreshAllPIDvalues()
+# TODO: move to MainWindow (where action resides)
+# def restore(conn):
+#     conn.restoreValues()
+#     app.mainWindow.centralWidget.refreshAllPIDvalues()
 
-def saveToEEPROM(conn):
-    if conn.saveToEEPROM() == 0:
-        MessageWindow(text='Successfully saved', type='Info')
-        app.mainWindow.centralWidget.refreshAllPIDvalues()
-    else:
-        MessageWindow(text='Saving failed!', type='Error')
+
+# TODO: move to MainWindow (where action resides)
+# TODO: maybe replace MessageWindows with StatusBar' messages
+# def saveToEEPROM(conn):
+#     if conn.saveToEEPROM() == 0:
+#         MessageWindow(text='Successfully saved', type='Info')
+#         app.mainWindow.centralWidget.refreshAllPIDvalues()
+#     else:
+#         MessageWindow(text='Saving failed!', type='Error')
 
 
 
@@ -151,15 +154,15 @@ class MainWindow(QMainWindow):
         restoreValuesAction = QAction(QIcon("img/restore.png"), 'Restore controller', self)
         restoreValuesAction.setShortcut('R')
         restoreValuesAction.setStatusTip('[R] Restore all controller parameters to values at the program start time')
-        restoreValuesAction.triggered.connect(functools.partial(restore, self.app.conn))
+        restoreValuesAction.triggered.connect(self.restoreContValues)
 
         saveToEEPROMAction = QAction(QIcon("img/eeprom.png"), 'Save to EEPROM', self)
         saveToEEPROMAction.setShortcut('S')
         saveToEEPROMAction.setStatusTip("[S] Save current controller configuration to EEPROM")
-        # saveToEEPROMAction.triggered.connect(self.centralWidget.saveToEEPROM)
-        saveToEEPROMAction.triggered.connect(functools.partial(saveToEEPROM, self.app.conn))
+        saveToEEPROMAction.triggered.connect(self.saveToEEPROM)
 
-        contToolbar = self.addToolBar('controller')
+        # TODO: rename 'cont' to something more distinguishable from 'conn'
+        contToolbar = self.addToolBar('controller')  # internal name
         contToolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         contToolbar.addAction(errorsLimitsAction)
         contToolbar.addAction(restoreValuesAction)
@@ -169,7 +172,6 @@ class MainWindow(QMainWindow):
         playpauseAction = QAction(QIcon('img/play_pause.png'), 'Play/Pause', self)
         playpauseAction.setShortcut('P')
         playpauseAction.setStatusTip('[P] Play/pause graphs')
-        # playpauseAction.triggered.connect(self.formWidget.graphs.toggle_live_graphs)
         playpauseAction.triggered.connect(self.playpauseGraphs)
 
         graphsToolbar = self.addToolBar('graphs')
@@ -177,15 +179,18 @@ class MainWindow(QMainWindow):
         graphsToolbar.addAction(playpauseAction)
         self.playpauseButton = graphsToolbar.widgetForAction(playpauseAction)
         self.playpauseButton.setCheckable(True)
+        self.playpauseButton.setChecked(True)
 
-        # menubar = self.menuBar()
+
         mainMenu = self.menuBar().addMenu('&Menu')
         mainMenu.addAction(exitAction)
         mainMenu.addAction(infoAction)
         mainMenu.addAction(settingsAction)
 
+
         if self.app.DEMO_MODE:
             self.statusBar().addWidget(QLabel("<font color='red'>Demo mode</font>"))
+
 
     def playpauseGraphs(self):
         if self.centralWidget.graphs.run:
@@ -195,41 +200,24 @@ class MainWindow(QMainWindow):
         self.centralWidget.graphs.toggle_live_graphs()
 
 
+    def restoreContValues(self):
+        self.app.conn.restoreValues()
+        self.centralWidget.refreshAllPIDvalues()
 
-# def connCheckTimerHandler():
-#     if tivaConn.checkConnection():
-#         connLostHandler()
-#     else:
-#         if tivaConn.OFFLINE_MODE:
-#             tivaConn.OFFLINE_MODE = False
-#             refreshAllPIDvalues()
-#             mainWindow.statusBar().removeWidget(connLostStatusBarLabel)
-#             mainWindow.statusBar().showMessage('Reconnected')
-#
-#
-# # handler function for connLost slot
-# def connLostHandler():
-#     if not tivaConn.OFFLINE_MODE:
-#         tivaConn.OFFLINE_MODE = True
-#         mainWindow.statusBar().addWidget(connLostStatusBarLabel)
-#         MessageWindow(text='Connection was lost. App going to Offline mode and will be trying to reconnect', type='Warning')
-#
-#
-# def refreshAllPIDvalues():
-#     mainWindow.centralWidget.setpointGroupBox.refreshVal()
-#     mainWindow.centralWidget.KpGroupBox.refreshVal()
-#     mainWindow.centralWidget.KiGroupBox.refreshVal()
-#     mainWindow.centralWidget.KdGroupBox.refreshVal()
-#     mainWindow.centralWidget.errorsSettingsWindow.PerrMin, mainWindow.centralWidget.errorsSettingsWindow.PerrMax = tivaConn.read('PerrLimits')
-#     mainWindow.centralWidget.errorsSettingsWindow.PerrMinLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.PerrMin))
-#     mainWindow.centralWidget.errorsSettingsWindow.PerrMaxLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.PerrMax))
-#     mainWindow.centralWidget.errorsSettingsWindow.IerrMin, mainWindow.centralWidget.errorsSettingsWindow.IerrMax = tivaConn.read('IerrLimits')
-#     mainWindow.centralWidget.errorsSettingsWindow.IerrMinLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.IerrMin))
-#     mainWindow.centralWidget.errorsSettingsWindow.IerrMaxLineEdit.setText('{}'.format(mainWindow.centralWidget.errorsSettingsWindow.IerrMax))
+
+    def saveToEEPROM(self):
+        if self.app.conn.saveToEEPROM() == 0:
+            MessageWindow(text='Successfully saved', type='Info')
+            self.app.mainWindow.centralWidget.refreshAllPIDvalues()
+        else:
+            MessageWindow(text='Saving failed!', type='Error')
+
 
 
 
 class MainApplication(QApplication):
+    # TODO: apply settings on-the-fly (not requiring a reboot)
+    # TODO: add more ToolTips and StatusTips for elements
 
     def __init__(self, argv):
 
@@ -247,6 +235,7 @@ class MainApplication(QApplication):
             self.conn.OFFLINE_MODE = True
             print("\nDemo mode entered")
         else:
+            self.connLostStatusBarLabel = QLabel("<font color='red'>Connection was lost. Trying to reconnect...</font>")
             # if connection is present and no demo mode then create timer for connection checking
             connCheckTimer = QTimer()
             connCheckTimer.timeout.connect(self.connCheckTimerHandler)
@@ -267,20 +256,20 @@ class MainApplication(QApplication):
             if self.conn.OFFLINE_MODE:
                 self.conn.OFFLINE_MODE = False
                 self.mainWindow.centralWidget.refreshAllPIDvalues()
-                self.mainWindow.statusBar().removeWidget(connLostStatusBarLabel)
+                self.mainWindow.statusBar().removeWidget(self.connLostStatusBarLabel)
                 self.mainWindow.statusBar().showMessage('Reconnected')
 
-    # handler function for connLost slot
+    # handler function for the connLost slot
     def connLostHandler(self):
         if not self.conn.OFFLINE_MODE:
             self.conn.OFFLINE_MODE = True
-            self.mainWindow.statusBar().addWidget(connLostStatusBarLabel)
+            self.mainWindow.statusBar().addWidget(self.connLostStatusBarLabel)
             MessageWindow(text='Connection was lost. App going to Offline mode and will be trying to reconnect', type='Warning')
 
 
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
 
     ORGANIZATION_NAME = 'Andrey Chufyrev'
     APPLICATION_NAME = 'PID controller GUI'
@@ -288,7 +277,5 @@ if __name__ == '__main__':
     QCoreApplication.setApplicationName(APPLICATION_NAME)
 
     app = MainApplication(sys.argv)
-
-    connLostStatusBarLabel = QLabel("<font color='red'>Connection was lost. Trying to reconnect...</font>")
 
     sys.exit(app.exec_())

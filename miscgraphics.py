@@ -86,7 +86,9 @@ class MessageWindow(QMessageBox):
     """
 
     def __init__(self, parent=None, text='', type='Warning'):
+
         super(MessageWindow, self).__init__(parent)
+
         self.setWindowTitle(type)
         self.setWindowIcon(QIcon('img/error.png'))
 
