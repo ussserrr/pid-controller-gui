@@ -1,0 +1,72 @@
+PID controller instruction set
+
+
+
+Request
+
+    pattern:
+
+        [OPERATION] [OBJECT] [optional VALUES]
+
+    example:
+
+        1) W sp 118.7
+               - set setpoint value to 118.7
+
+        2) R Kp
+               - read proportional gain
+
+
+
+Response
+
+    pattern:
+
+        [RESULT CODE] [OPERATION] [OBJECT] [optional VALUES]
+
+    example:
+
+        1) 0 R EpL -2000 2000
+               - successful reading of proportional error' limits (minimum, maximum values)
+
+        2) 1 W Ki
+               - failed to write Ki
+
+
+
+Objects list ([OBJECT] field)
+
+    sp     -     setpoint
+
+    Kp     -     proportional gain
+    Ki     -     integral gain
+    Kd     -     derivative gain
+
+    Ei     -     integral error (for reset purpose)
+
+    EpL    -     proportional error' limits (minimum, maximum values)
+    EiL    -     integral error' limits (minimum, maximum values)
+
+
+
+Special commands (command from host PC and response from controller only)
+
+    Process variable (i.e. feedback input) stream:
+
+        start: pv 1
+        stop: pv 0
+
+        response on start: i[VALUE]
+        response on stop: -
+
+    Controller output (i.e. value that PID algorithm did calculate) stream:
+
+        start: co 1
+        stop: co 0
+
+        response on start: o[VALUE]
+        response on stop: -
+
+
+
+TODO: custom commands (e.g. PWM period, regulation period)

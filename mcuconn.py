@@ -54,7 +54,7 @@ class MCUconn():
     def read(self, coef):
         if coef == 'U':
             self.write('u')
-        elif coef == 'PID':  # TODO: actually, we can calculate this by yourself
+        elif coef == 'PID':  # TODO: actually, we can calculate this by yourself using the same algo as in controller
             self.write('p')
         elif coef == 'setpoint':
             self.write('spRead')
