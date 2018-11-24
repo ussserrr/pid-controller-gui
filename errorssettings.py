@@ -26,11 +26,11 @@ class ErrorsSettingsWindow(QWidget):
 
 
         self.lineEdits = {
-            'PerrLimits': {
+            'err_P_limits': {
                 'min': QLineEdit(),
                 'max': QLineEdit()
             },
-            'IerrLimits': {
+            'err_I_limits': {
                 'min': QLineEdit(),
                 'max': QLineEdit()
             }
@@ -41,42 +41,42 @@ class ErrorsSettingsWindow(QWidget):
                 lineEdit.setValidator(QDoubleValidator())
 
 
-        PerrLimitsSetButton = QPushButton('Set')
-        PerrLimitsSetButton.clicked.connect(functools.partial(self.setErrLimits, 'PerrLimits'))
+        pErrLimitsSetButton = QPushButton('Set')
+        pErrLimitsSetButton.clicked.connect(functools.partial(self.setErrLimits, 'err_P_limits'))
 
-        PerrHBox = QHBoxLayout()
-        PerrHBox.addWidget(QLabel("Min:"))
-        PerrHBox.addWidget(self.lineEdits['PerrLimits']['min'])
-        PerrHBox.addWidget(QLabel("Max:"))
-        PerrHBox.addWidget(self.lineEdits['PerrLimits']['max'])
-        PerrHBox.addWidget(PerrLimitsSetButton)
+        pErrHBox = QHBoxLayout()
+        pErrHBox.addWidget(QLabel("Min:"))
+        pErrHBox.addWidget(self.lineEdits['err_P_limits']['min'])
+        pErrHBox.addWidget(QLabel("Max:"))
+        pErrHBox.addWidget(self.lineEdits['err_P_limits']['max'])
+        pErrHBox.addWidget(pErrLimitsSetButton)
 
-        PerrGroupBox = QGroupBox("P error limits")
-        PerrGroupBox.setLayout(PerrHBox)
+        pErrGroupBox = QGroupBox("P error limits")
+        pErrGroupBox.setLayout(pErrHBox)
 
 
-        IerrLimitsSetButton = QPushButton('Set')
-        IerrLimitsSetButton.clicked.connect(functools.partial(self.setErrLimits, 'IerrLimits'))
+        iErrLimitsSetButton = QPushButton('Set')
+        iErrLimitsSetButton.clicked.connect(functools.partial(self.setErrLimits, 'err_I_limits'))
 
-        resetIerrButton = QPushButton("Reset I error")
-        resetIerrButton.clicked.connect(self.resetIerr)
+        iErrResetButton = QPushButton("Reset I error")
+        iErrResetButton.clicked.connect(self.resetIerr)
 
-        IerrHBox1 = QHBoxLayout()
-        IerrHBox1.addWidget(QLabel("Min:"))
-        IerrHBox1.addWidget(self.lineEdits['IerrLimits']['min'])
-        IerrHBox1.addWidget(QLabel("Max:"))
-        IerrHBox1.addWidget(self.lineEdits['IerrLimits']['max'])
-        IerrHBox1.addWidget(IerrLimitsSetButton)
+        iErrHBox1 = QHBoxLayout()
+        iErrHBox1.addWidget(QLabel("Min:"))
+        iErrHBox1.addWidget(self.lineEdits['err_I_limits']['min'])
+        iErrHBox1.addWidget(QLabel("Max:"))
+        iErrHBox1.addWidget(self.lineEdits['err_I_limits']['max'])
+        iErrHBox1.addWidget(iErrLimitsSetButton)
 
-        IerrHBox2 = QHBoxLayout()
-        IerrHBox2.addWidget(resetIerrButton)
+        iErrHBox2 = QHBoxLayout()
+        iErrHBox2.addWidget(iErrResetButton)
 
-        IerrVBox = QVBoxLayout()
-        IerrVBox.addLayout(IerrHBox1)
-        IerrVBox.addLayout(IerrHBox2)
+        iErrVBox = QVBoxLayout()
+        iErrVBox.addLayout(iErrHBox1)
+        iErrVBox.addLayout(iErrHBox2)
 
-        IerrGroupBox = QGroupBox("I error limits")
-        IerrGroupBox.setLayout(IerrVBox)
+        iErrGroupBox = QGroupBox("I error limits")
+        iErrGroupBox.setLayout(iErrVBox)
 
 
         self.statusBar = QStatusBar()
@@ -84,13 +84,13 @@ class ErrorsSettingsWindow(QWidget):
 
         grid = QGridLayout()
         self.setLayout(grid)
-        grid.addWidget(PerrGroupBox)
-        grid.addWidget(IerrGroupBox)
+        grid.addWidget(pErrGroupBox)
+        grid.addWidget(iErrGroupBox)
         grid.addWidget(self.statusBar)
 
 
     def show(self):
-        self.updateDisplayingValues('PerrLimits', 'IerrLimits')
+        self.updateDisplayingValues('err_P_limits', 'err_I_limits')
         super(ErrorsSettingsWindow, self).show()
 
 

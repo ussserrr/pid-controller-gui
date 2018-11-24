@@ -15,7 +15,7 @@ from PyQt5.QtCore import QTimer, QCoreApplication, QSettings, Qt, QT_VERSION_STR
 from PyQt5.Qt import PYQT_VERSION_STR
 
 from miscgraphics import PicButton, MessageWindow, Graph, resource_path
-from mcuconn import MCUconn
+from remotecontroller import RemoteController
 
 
 
@@ -578,8 +578,8 @@ def checkConnectionTimerHandler():
     if tivaConn.checkConnection():
         connLostHandler()
     else:
-        if tivaConn.OFFLINE_MODE:
-            tivaConn.OFFLINE_MODE = False
+        if tivaConn.isOfflineMode:
+            tivaConn.isOfflineMode = False
             refreshAllPIDvalues()
             mainWindow.statusBar().removeWidget(connLostStatusBarLabel)
             mainWindow.statusBar().showMessage('Reconnected')
@@ -587,8 +587,8 @@ def checkConnectionTimerHandler():
 
 # handler function for connLost slot
 def connLostHandler():
-    if not tivaConn.OFFLINE_MODE:
-        tivaConn.OFFLINE_MODE = True
+    if not tivaConn.isOfflineMode:
+        tivaConn.isOfflineMode = True
         mainWindow.statusBar().addWidget(connLostStatusBarLabel)
         MessageWindow(text='Connection was lost. App going to Offline mode and will be trying to reconnect', type='Warning')
 
@@ -652,12 +652,12 @@ if __name__ == '__main__':
 
     app = QApplication(sys.argv)
 
-    tivaConn = MCUconn(IP, PORT)
+    tivaConn = RemoteController(IP, PORT)
     # widget for showing in statusbar when connection lost
     connLostStatusBarLabel = QLabel("<font color='red'>Connection was lost. Trying to reconnect...</font>")
     DEMO_MODE = False
     if tivaConn.checkConnection():
-        tivaConn.OFFLINE_MODE = True
+        tivaConn.isOfflineMode = True
         DEMO_MODE = True
         print("\nDemo mode entered")
         MessageWindow(text="Due to no connection to regulator the application will start in Demo mode. All values are random. "\

@@ -1,6 +1,5 @@
-import functools
-
 import sys
+import os
 
 from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGroupBox, QLabel, QPushButton,\
                             QApplication, QSpinBox, QStatusBar, QProgressBar, QLineEdit, QCheckBox, QGridLayout,\
@@ -11,12 +10,15 @@ from PyQt5.Qt import PYQT_VERSION_STR
 import qdarkstyle
 
 from miscgraphics import PicButton, MessageWindow, ValueGroupBox, CustomGraphicsLayoutWidget
-from mcuconn import MCUconn
+from remotecontroller import RemoteController
 from settings import Settings, SettingsWindow
 from errorssettings import ErrorsSettingsWindow
 from about import AboutWindow
 
 import numpy as np
+
+
+# TODO: rename all 'procVar_' and 'contOut_' to 'pv_', 'co_'. Maybe use _docstring_ for entire module to declare the glossary
 
 
 
@@ -30,9 +32,9 @@ class CentralWidget(QWidget):
 
         self.contValGroupBoxes = {
             'setpoint': ValueGroupBox('setpoint', app.conn),
-            'Kp': ValueGroupBox('Kp', app.conn),
-            'Ki': ValueGroupBox('Ki', app.conn),
-            'Kd': ValueGroupBox('Kd', app.conn)
+            'kP': ValueGroupBox('kP', app.conn),
+            'kI': ValueGroupBox('kI', app.conn),
+            'kD': ValueGroupBox('kD', app.conn)
         }
 
         self.errorsSettingsWindow = ErrorsSettingsWindow(app)
@@ -60,10 +62,11 @@ class CentralWidget(QWidget):
         self.setLayout(grid)
 
         # TODO: draw a scheme of this grid in documentation
+        # https://stackoverflow.com/questions/5909873/how-can-i-pretty-print-ascii-tables-with-python
         grid.addWidget(self.contValGroupBoxes['setpoint'], 0, 0, 3, 2)
-        grid.addWidget(self.contValGroupBoxes['Kp'], 3, 0, 3, 2)
-        grid.addWidget(self.contValGroupBoxes['Ki'], 6, 0, 3, 2)
-        grid.addWidget(self.contValGroupBoxes['Kd'], 9, 0, 3, 2)
+        grid.addWidget(self.contValGroupBoxes['kP'], 3, 0, 3, 2)
+        grid.addWidget(self.contValGroupBoxes['kI'], 6, 0, 3, 2)
+        grid.addWidget(self.contValGroupBoxes['kD'], 9, 0, 3, 2)
 
         grid.addWidget(self.graphs, 0, 2, 14, 4)
 
@@ -86,7 +89,7 @@ class CentralWidget(QWidget):
         # self.KpGroupBox.refreshVal()
         # self.KiGroupBox.refreshVal()
         # self.KdGroupBox.refreshVal()
-        self.errorsSettingsWindow.updateDisplayingValues('PerrLimits', 'IerrLimits')
+        self.errorsSettingsWindow.updateDisplayingValues('err_P_limits', 'err_I_limits')
 
 
 # TODO: move to MainWindow (where action resides)
@@ -188,8 +191,8 @@ class MainWindow(QMainWindow):
         mainMenu.addAction(settingsAction)
 
 
-        if self.app.DEMO_MODE:
-            self.statusBar().addWidget(QLabel("<font color='red'>Demo mode</font>"))
+        if self.app.isOfflineMode:
+            self.statusBar().addWidget(QLabel("<font color='red'>Offline mode</font>"))
 
 
     def playpauseGraphs(self):
@@ -219,27 +222,38 @@ class MainApplication(QApplication):
     # TODO: apply settings on-the-fly (not requiring a reboot)
     # TODO: add more ToolTips and StatusTips for elements
 
-    def __init__(self, argv):
+    def __init__(self, argv, thread_pid=None):
 
         super(MainApplication, self).__init__(argv)
 
+
         self.settings = Settings(defaults='defaultSettings.json')
+
 
         if self.settings['appearance']['theme'] == 'dark':
             self.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
 
-        self.conn = MCUconn(self.settings['network']['ip'], self.settings['network']['port'])
-        self.DEMO_MODE = False
-        if self.conn.checkConnection() != 0:
-            self.DEMO_MODE = True
-            self.conn.OFFLINE_MODE = True
-            print("\nDemo mode entered")
+
+        self.connLostStatusBarLabel = QLabel("<font color='red'>Connection was lost. Trying to reconnect...</font>")
+
+        self.isOfflineMode = False
+        self.conn = RemoteController(self.settings['network']['ip'], self.settings['network']['port'],
+                                     thread_pid=thread_pid)
+        if self.conn.isOfflineMode:
+            self.isOfflineMode = True
+            print("offline mode")
+            # MessageWindow()
+
+        # self.isOfflineMode = False
+        # if self.conn.checkConnection() != 0:
+        #     self.isOfflineMode = True
+        #     self.conn.isOfflineMode = True
+        #     print("\nDemo mode entered")
         else:
-            self.connLostStatusBarLabel = QLabel("<font color='red'>Connection was lost. Trying to reconnect...</font>")
             # if connection is present and no demo mode then create timer for connection checking
-            connCheckTimer = QTimer()
-            connCheckTimer.timeout.connect(self.connCheckTimerHandler)
-            connCheckTimer.start(self.settings['network']['checkInterval'])  # every 5 seconds
+            self.connCheckTimer = QTimer()
+            self.connCheckTimer.timeout.connect(self.connCheckTimerHandler)
+            self.connCheckTimer.start(self.settings['network']['checkInterval'])  # every 5 seconds
             # also create handler function for connection lost (for example, when reading some coefficient from MCU)
             self.conn.connLost.signal.connect(self.connLostHandler)
 
@@ -249,20 +263,26 @@ class MainApplication(QApplication):
         self.mainWindow.show()
 
 
+    def quit(self):
+        self.conn.close()
+        super(MainApplication, self).quit()
+
+
     def connCheckTimerHandler(self):
-        if self.conn.checkConnection():
+        print("check connection")
+        if self.conn.checkConnection() != 0:
             self.connLostHandler()
         else:
-            if self.conn.OFFLINE_MODE:
-                self.conn.OFFLINE_MODE = False
+            if self.conn.isOfflineMode:
+                self.conn.isOfflineMode = False
                 self.mainWindow.centralWidget.refreshAllPIDvalues()
                 self.mainWindow.statusBar().removeWidget(self.connLostStatusBarLabel)
                 self.mainWindow.statusBar().showMessage('Reconnected')
 
     # handler function for the connLost slot
     def connLostHandler(self):
-        if not self.conn.OFFLINE_MODE:
-            self.conn.OFFLINE_MODE = True
+        if not self.conn.isOfflineMode:
+            self.conn.isOfflineMode = True
             self.mainWindow.statusBar().addWidget(self.connLostStatusBarLabel)
             MessageWindow(text='Connection was lost. App going to Offline mode and will be trying to reconnect', type='Warning')
 
@@ -276,6 +296,7 @@ if __name__ == '__main__':
     QCoreApplication.setOrganizationName(ORGANIZATION_NAME)
     QCoreApplication.setApplicationName(APPLICATION_NAME)
 
-    app = MainApplication(sys.argv)
+    main_thread_pid = os.getpid()
+    app = MainApplication(sys.argv, thread_pid=main_thread_pid)
 
     sys.exit(app.exec_())

@@ -1,6 +1,6 @@
 {
   "network": {
-    "ip": "192.168.1.110",
+    "ip": "127.0.0.1",
     "port": 1200,
     "checkInterval": 5000
   },
@@ -8,7 +8,7 @@
     "theme": "light"
   },
   "graphs": {
-    "updateInterval": 17,
+    "updateInterval": 19,
     "numberOfPoints": 200
   }
 }

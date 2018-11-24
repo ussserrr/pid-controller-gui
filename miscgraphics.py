@@ -19,28 +19,27 @@ class PicButton(QAbstractButton):
 
     Usage example:
 
-        if __name__ == '__main__':
-            import sys
-            from PyQt5.QtWidgets import QApplication
+        # button_test.py
 
-            app = QApplication(sys.argv)
-            button = PicButton(QPixmap("alone.png"),
-                               QPixmap("hovered.png"),
-                               QPixmap("pressed.png"))
-            window = QWidget()
-            layout = QHBoxLayout(window)
-            layout.addWidget(button)
-            window.show()
-            sys.exit(app.exec_())
+        import sys
+        from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout
+
+        app = QApplication(sys.argv)
+        button = PicButton("img/refresh.png", "img/refresh_hover.png", "img/refresh_pressed.png")
+        window = QWidget()
+        layout = QHBoxLayout(window)
+        layout.addWidget(button)
+        window.show()
+        sys.exit(app.exec_())
 
     """
 
-    def __init__(self, pixmap, pixmap_hover, pixmap_pressed, parent=None):
+    def __init__(self, img_normal, img_hover, img_pressed, parent=None):
         super(PicButton, self).__init__(parent)
 
-        self.pixmap = pixmap
-        self.pixmap_hover = pixmap_hover
-        self.pixmap_pressed = pixmap_pressed
+        self.pixmap = QPixmap(img_normal)
+        self.pixmap_hover = QPixmap(img_hover)
+        self.pixmap_pressed = QPixmap(img_pressed)
 
         self.pressed.connect(self.update)
         self.released.connect(self.update)
@@ -123,8 +122,7 @@ class ValueGroupBox(QGroupBox):
         self.valLabelTemplate = string.Template("Current $label: <b>{:.3f}</b>").safe_substitute(label=label)
         self.valLabel = QLabel()
         self.refreshVal()
-        refreshButton = PicButton(QPixmap("img/refresh.png"), QPixmap("img/refresh_hover.png"),
-                                  QPixmap("img/refresh_pressed.png"))
+        refreshButton = PicButton("img/refresh.png", "img/refresh_hover.png", "img/refresh_pressed.png")
         refreshButton.clicked.connect(self.refreshVal)
         refreshButton.setIcon(QIcon("img/refresh.png"))
         self.writeLine = QLineEdit()
