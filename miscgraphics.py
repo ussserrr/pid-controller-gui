@@ -10,7 +10,6 @@ import pyqtgraph
 
 
 
-
 class PicButton(QAbstractButton):
 
     """
@@ -160,68 +159,40 @@ class ValueGroupBox(QGroupBox):
 
 
 
-# class CustomLayoutWidget(pyqtgraph.LayoutWidget):
-#     """
-#
-#     """
-#
-#     def __init__(self, nPoints=200, procVarRange=(0.0, 1.0), contOutRange=(0.0, 1.0), interval=17, start=False):
-#         super(CustomLayoutWidget, self).__init__()
-#
-#         self.nPoints = nPoints
-#         self.interval = interval
-#
-#         self.run = False
-#
-#         self.timeAxes = np.linspace(-nPoints*interval, 0, nPoints)
-#
-#         self.procVarGraph = pyqtgraph.PlotWidget(y=np.zeros([self.nPoints]), labels={'right': "Process Variable"})
-#         self.procVarGraph.plotItem.setRange(yRange=procVarRange)
-#         self.addWidget(self.procVarGraph)
-#         self.nextRow()
-#         self.averLabel = pyqtgraph.ValueLabel(averageTime=nPoints*interval)
-#         self.addWidget(self.averLabel)
-#         self.nextRow()
-#         self.contOutGraph = pyqtgraph.PlotWidget(y=np.zeros([self.nPoints]), labels={'right': "Controller Output", 'bottom': "Time, ms"})
-#         self.contOutGraph.plotItem.setRange(yRange=contOutRange)
-#         self.addWidget(self.contOutGraph)
-#
-#         self.updateTimer = QTimer()
-#         self.updateTimer.timeout.connect(self.update_graphs)
-#         if start:
-#             self.start_live_graphs()
-#
-#     def start_live_graphs(self):
-#         self.run = True
-#         self.updateTimer.start(self.interval)
-#
-#     def pause_live_graphs(self):
-#         self.run = False
-#         self.updateTimer.stop()
-#
-#     def toggle_live_graphs(self):
-#         if self.run:
-#             self.pause_live_graphs()
-#         else:
-#             self.start_live_graphs()
-#
-#     def update_graphs(self):
-#         self.averLabel.setValue(4.5 + np.random.rand())
-#         procVarData = np.roll(self.procVarGraph.plotItem.curves[0].getData()[1], -1)
-#         procVarData[-1] = 4.5 + np.random.rand()
-#         contOutData = np.roll(self.contOutGraph.plotItem.curves[0].getData()[1], -1)
-#         contOutData[-1] = 4.5 + np.random.rand()
-#         self.procVarGraph.plotItem.curves[0].setData(self.timeAxes, procVarData)
-#         self.contOutGraph.plotItem.curves[0].setData(self.timeAxes, contOutData)
-
-
-
 class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
     """
+    This class allows to place plots only. To be able to add some other pyqtgraph elements you can use
+    pyqtgraph.LayoutWidget as a base instead:
+
+        class CustomLayoutWidget(pyqtgraph.LayoutWidget):
+
+            def __init__(self):
+                super(CustomLayoutWidget, self).__init__()
+
+                self.timeAxes = np.linspace(-nPoints*interval, 0, nPoints)
+
+                self.procVarGraph = pyqtgraph.PlotWidget(y=np.zeros([self.nPoints]))
+                self.procVarGraph.plotItem.setRange(yRange=procVarRange)
+                self.addWidget(self.procVarGraph)
+                self.nextRow()
+                self.averLabel = pyqtgraph.ValueLabel(averageTime=nPoints*interval)
+                self.addWidget(self.averLabel)
+                self.nextRow()
+                self.contOutGraph = pyqtgraph.PlotWidget(y=np.zeros([self.nPoints]))
+                self.contOutGraph.plotItem.setRange(yRange=contOutRange)
+                self.addWidget(self.contOutGraph)
+
+                self.updateTimer = QTimer()
+                self.updateTimer.timeout.connect(self.update_graphs)
+                if start:
+                    self.start_live_graphs()
+
+            ...
 
     """
 
-    def __init__(self, nPoints=200, procVarRange=(0,0), contOutRange=(0,0), interval=17, theme='dark', start=False):
+    def __init__(self, nPoints=200, procVarRange=(0.0, 0.0), contOutRange=(0.0, 0.0), interval=19,
+                 stream_pipe_rx=None, theme='dark', start=False):
 
         if theme != 'dark':
             pyqtgraph.setConfigOption('background', 'w')
@@ -230,12 +201,21 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         super(CustomGraphicsLayoutWidget, self).__init__()
 
         self.nPoints = nPoints
+        self.lastPoint = {
+            'pv': 0.0,
+            'co': 0.0
+        }
         self.interval = interval
-        self.run = False
+
         self.timeAxes = np.linspace(-nPoints*interval, 0, nPoints)
 
-        self.procVarGraph = self.addPlot(y=np.zeros([self.nPoints]), labels={'right': "Process Variable"}, pen=pyqtgraph.mkPen(color='r'))
-        if procVarRange != (0,0):
+        self.stream_pipe_rx = stream_pipe_rx
+        self.isRun = False
+
+        self.procVarGraph = self.addPlot(y=np.zeros([self.nPoints]),
+                                         labels={'right': "Process Variable"},
+                                         pen=pyqtgraph.mkPen(color='r'))
+        if procVarRange != (0, 0):
             self.procVarGraph.setRange(yRange=procVarRange)
         self.procVarGraph.hideButtons()
         self.procVarGraph.hideAxis('left')
@@ -243,8 +223,10 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
         self.nextRow()
 
-        self.contOutGraph = self.addPlot(y=np.zeros([self.nPoints]), labels={'right': "Controller Output", 'bottom': "Time, ms"}, pen=pyqtgraph.mkPen(color='r'))
-        if contOutRange != (0,0):
+        self.contOutGraph = self.addPlot(y=np.zeros([self.nPoints]),
+                                         labels={'right': "Controller Output", 'bottom': "Time, ms"},
+                                         pen=pyqtgraph.mkPen(color='r'))
+        if contOutRange != (0, 0):
             self.contOutGraph.setRange(yRange=contOutRange)
         self.contOutGraph.hideButtons()
         self.contOutGraph.hideAxis('left')
@@ -255,30 +237,54 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
         self.updateTimer = QTimer()
         self.updateTimer.timeout.connect(self.update_graphs)
+
         if start:
             self.start_live_graphs()
 
+        # self.cnt = 0
+
+
     def start_live_graphs(self):
-        self.run = True
+        self.isRun = True
+        # reset data cause it has changed during the pause time
+        self.procVarGraph.curves[0].setData(self.timeAxes, np.zeros([self.nPoints]))
+        self.contOutGraph.curves[0].setData(self.timeAxes, np.zeros([self.nPoints]))
         self.updateTimer.start(self.interval)
 
+
     def pause_live_graphs(self):
-        self.run = False
+        self.isRun = False
         self.updateTimer.stop()
 
+
     def toggle_live_graphs(self):
-        if self.run:
+        if self.isRun:
             self.pause_live_graphs()
         else:
             self.start_live_graphs()
 
+
     def update_graphs(self):
-        self.procVarAverLabel.setValue(4.5 + np.random.rand())
-        self.contOutAverLabel.setValue(4.5 + np.random.rand())
+        if self.stream_pipe_rx is None:
+            self.lastPoint['pv'] = -0.5 + np.random.rand()
+            self.lastPoint['co'] = -0.5 + np.random.rand()
+        else:
+            try:
+                if self.stream_pipe_rx.poll():
+                    point = self.stream_pipe_rx.recv()
+                    self.lastPoint['pv'] = point[0]
+                    self.lastPoint['co'] = point[1]
+                    # self.cnt += 1
+            except OSError:
+                print("OSError")
+
+        self.procVarAverLabel.setValue(self.lastPoint['pv'])
+        self.contOutAverLabel.setValue(self.lastPoint['co'])
 
         procVarData = np.roll(self.procVarGraph.curves[0].getData()[1], -1)
-        procVarData[-1] = 4.5 + np.random.rand()
+        procVarData[-1] = self.lastPoint['pv']
         contOutData = np.roll(self.contOutGraph.curves[0].getData()[1], -1)
-        contOutData[-1] = 4.5 + np.random.rand()
+        contOutData[-1] = self.lastPoint['co']
+
         self.procVarGraph.curves[0].setData(self.timeAxes, procVarData)
         self.contOutGraph.curves[0].setData(self.timeAxes, contOutData)

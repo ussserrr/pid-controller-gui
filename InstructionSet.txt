@@ -28,11 +28,11 @@ Request
 
 
     special (opcode is always 0)
-        0000 - process variable stop stream
-        0001 - process variable start stream
+        0000 - stream stop
+        0001 - stream start
 
-        0010 - controller output stop stream
-        0011 - controller output start stream
+        OFF 0010 - controller output stop stream
+        OFF 0011 - controller output start stream
 
         1011 - save to EEPROM
 
@@ -46,6 +46,9 @@ Response
     result
         0 - success
         1 - error
+
+
+
 
 
 Request

@@ -1,22 +1,19 @@
 import sys
 import os
 
-from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGroupBox, QLabel, QPushButton,\
-                            QApplication, QSpinBox, QStatusBar, QProgressBar, QLineEdit, QCheckBox, QGridLayout,\
-                            QTabWidget, QMainWindow, QToolTip, QAction, QLayout, QSizePolicy, QButtonGroup
+from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGroupBox, QLabel, QPushButton, \
+    QApplication, QSpinBox, QStatusBar, QProgressBar, QLineEdit, QCheckBox, QGridLayout, \
+    QTabWidget, QMainWindow, QToolTip, QAction, QLayout, QSizePolicy, QButtonGroup
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import QTimer, QCoreApplication, QSettings, Qt, QT_VERSION_STR
 from PyQt5.Qt import PYQT_VERSION_STR
 import qdarkstyle
 
-from miscgraphics import PicButton, MessageWindow, ValueGroupBox, CustomGraphicsLayoutWidget
+from miscgraphics import MessageWindow, ValueGroupBox, CustomGraphicsLayoutWidget
 from remotecontroller import RemoteController
 from settings import Settings, SettingsWindow
 from errorssettings import ErrorsSettingsWindow
 from about import AboutWindow
-
-import numpy as np
-
 
 # TODO: rename all 'procVar_' and 'contOut_' to 'pv_', 'co_'. Maybe use _docstring_ for entire module to declare the glossary
 
@@ -25,7 +22,6 @@ import numpy as np
 class CentralWidget(QWidget):
 
     def __init__(self, app, parent=None):
-
         super(CentralWidget, self).__init__(parent)
 
         self.app = app
@@ -41,9 +37,10 @@ class CentralWidget(QWidget):
 
         self.graphs = CustomGraphicsLayoutWidget(
             nPoints=app.settings['graphs']['numberOfPoints'],
-            procVarRange=(0.0, 10.0),  # TODO: store as variables or make settings for these
-            contOutRange=(0.0, 10.0),
+            procVarRange=(-2.0, 2.0),  # TODO: store as variables or make settings for these
+            contOutRange=(-2.0, 2.0),
             interval=app.settings['graphs']['updateInterval'],
+            stream_pipe_rx=None if self.app.isOfflineMode else self.app.conn.stream.pipe_rx,
             theme=app.settings['appearance']['theme'],
             start=False
         )
@@ -70,7 +67,6 @@ class CentralWidget(QWidget):
 
         grid.addWidget(self.graphs, 0, 2, 14, 4)
 
-
         avrgUHBox = QHBoxLayout()
         avrgUHBox.addWidget(QLabel("Process Variable:"))
         avrgUHBox.addWidget(self.avrgULabel)
@@ -85,35 +81,15 @@ class CentralWidget(QWidget):
     def refreshAllPIDvalues(self):
         for groupBox in self.contValGroupBoxes.values():
             groupBox.refreshVal()
-        # self.setpointGroupBox.refreshVal()
-        # self.KpGroupBox.refreshVal()
-        # self.KiGroupBox.refreshVal()
-        # self.KdGroupBox.refreshVal()
         self.errorsSettingsWindow.updateDisplayingValues('err_P_limits', 'err_I_limits')
 
 
-# TODO: move to MainWindow (where action resides)
-# def restore(conn):
-#     conn.restoreValues()
-#     app.mainWindow.centralWidget.refreshAllPIDvalues()
 
 
-# TODO: move to MainWindow (where action resides)
 # TODO: maybe replace MessageWindows with StatusBar' messages
-# def saveToEEPROM(conn):
-#     if conn.saveToEEPROM() == 0:
-#         MessageWindow(text='Successfully saved', type='Info')
-#         app.mainWindow.centralWidget.refreshAllPIDvalues()
-#     else:
-#         MessageWindow(text='Saving failed!', type='Error')
-
-
-
-
 class MainWindow(QMainWindow):
 
     def __init__(self, app, parent=None):
-
         super(MainWindow, self).__init__(parent)
 
         self.app = app
@@ -123,7 +99,6 @@ class MainWindow(QMainWindow):
 
         self.centralWidget = CentralWidget(app)
         self.setCentralWidget(self.centralWidget)
-
 
         exitAction = QAction(QIcon('img/exit.png'), 'Exit', self)
         exitAction.setShortcut('Ctrl+Q')
@@ -148,7 +123,6 @@ class MainWindow(QMainWindow):
         appToolbar.addAction(infoAction)
         appToolbar.addAction(settingsAction)
 
-
         errorsLimitsAction = QAction(QIcon("img/set_errors.png"), 'Errors limits', self)
         errorsLimitsAction.setShortcut('E')
         errorsLimitsAction.setStatusTip("[E] Set values of errors limits")
@@ -171,7 +145,6 @@ class MainWindow(QMainWindow):
         contToolbar.addAction(restoreValuesAction)
         contToolbar.addAction(saveToEEPROMAction)
 
-
         playpauseAction = QAction(QIcon('img/play_pause.png'), 'Play/Pause', self)
         playpauseAction.setShortcut('P')
         playpauseAction.setStatusTip('[P] Play/pause graphs')
@@ -184,22 +157,21 @@ class MainWindow(QMainWindow):
         self.playpauseButton.setCheckable(True)
         self.playpauseButton.setChecked(True)
 
-
         mainMenu = self.menuBar().addMenu('&Menu')
         mainMenu.addAction(exitAction)
         mainMenu.addAction(infoAction)
         mainMenu.addAction(settingsAction)
-
 
         if self.app.isOfflineMode:
             self.statusBar().addWidget(QLabel("<font color='red'>Offline mode</font>"))
 
 
     def playpauseGraphs(self):
-        if self.centralWidget.graphs.run:
+        if self.centralWidget.graphs.isRun:
             self.playpauseButton.setChecked(True)
         else:
             self.playpauseButton.setChecked(False)
+        self.app.conn.stream.toggle()
         self.centralWidget.graphs.toggle_live_graphs()
 
 
@@ -216,6 +188,10 @@ class MainWindow(QMainWindow):
             MessageWindow(text='Saving failed!', type='Error')
 
 
+    def closeEvent(self, QCloseEvent):
+        self.app.quit()
+
+
 
 
 class MainApplication(QApplication):
@@ -223,16 +199,12 @@ class MainApplication(QApplication):
     # TODO: add more ToolTips and StatusTips for elements
 
     def __init__(self, argv, thread_pid=None):
-
         super(MainApplication, self).__init__(argv)
-
 
         self.settings = Settings(defaults='defaultSettings.json')
 
-
         if self.settings['appearance']['theme'] == 'dark':
             self.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-
 
         self.connLostStatusBarLabel = QLabel("<font color='red'>Connection was lost. Trying to reconnect...</font>")
 
@@ -242,13 +214,8 @@ class MainApplication(QApplication):
         if self.conn.isOfflineMode:
             self.isOfflineMode = True
             print("offline mode")
-            # MessageWindow()
-
-        # self.isOfflineMode = False
-        # if self.conn.checkConnection() != 0:
-        #     self.isOfflineMode = True
-        #     self.conn.isOfflineMode = True
-        #     print("\nDemo mode entered")
+            MessageWindow(text="No connection to the remote controller. App goes to the Offline (demo) mode. "
+                               "All values are random. To try to reconnect please restart the app", type='Warning')
         else:
             # if connection is present and no demo mode then create timer for connection checking
             self.connCheckTimer = QTimer()
@@ -259,12 +226,22 @@ class MainApplication(QApplication):
 
         self.conn.saveCurrentValues()
 
+        # self.test_timer = QTimer()
+        # self.test_timer.timeout.connect(self.test)
+        # self.test_timer.start(500)  # every 5 seconds
+
         self.mainWindow = MainWindow(self)
         self.mainWindow.show()
 
 
+    def test(self):
+        print("read all")
+        self.conn.saveCurrentValues()
+
+
     def quit(self):
         self.conn.close()
+        # print(f"pipe: {self.mainWindow.centralWidget.graphs.cnt}")
         super(MainApplication, self).quit()
 
 
@@ -273,24 +250,28 @@ class MainApplication(QApplication):
         if self.conn.checkConnection() != 0:
             self.connLostHandler()
         else:
-            if self.conn.isOfflineMode:
-                self.conn.isOfflineMode = False
+            if self.isOfflineMode:
+                self.isOfflineMode = False
                 self.mainWindow.centralWidget.refreshAllPIDvalues()
                 self.mainWindow.statusBar().removeWidget(self.connLostStatusBarLabel)
                 self.mainWindow.statusBar().showMessage('Reconnected')
 
+
     # handler function for the connLost slot
     def connLostHandler(self):
-        if not self.conn.isOfflineMode:
-            self.conn.isOfflineMode = True
+        if not self.isOfflineMode:
+            self.isOfflineMode = True
+            print('lost connection')
+            # if self.mainWindow.centralWidget.graphs.isRun:
+            #     self.mainWindow.playpauseGraphs()
             self.mainWindow.statusBar().addWidget(self.connLostStatusBarLabel)
-            MessageWindow(text='Connection was lost. App going to Offline mode and will be trying to reconnect', type='Warning')
+            MessageWindow(text="Connection was lost. App goes to the Offline mode and will be trying to reconnect",
+                          type='Warning')  # TODO: stop stream on controller if no 'ping' messages
 
 
 
 
 if __name__ == '__main__':
-
     ORGANIZATION_NAME = 'Andrey Chufyrev'
     APPLICATION_NAME = 'PID controller GUI'
     QCoreApplication.setOrganizationName(ORGANIZATION_NAME)
