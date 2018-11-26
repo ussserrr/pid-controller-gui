@@ -235,10 +235,10 @@ def _thread_input_handler(sock_mutex, sock, var_cmd_pipe_tx, stream_pipe_tx):
             response = _parse_response(payload)
             if response['var_cmd'] == 'stream':
                 stream_pipe_tx.send(response['values'])  # TODO: maybe this can block, overflow!
+                points_cnt += 1
             else:
                 var_cmd_pipe_tx.send(response)  # TODO: this can block! maybe check queue.Full (overflow)
                 # var_cmd_queue.put(response)  # TODO: this can block! maybe check queue.Full (overflow)
-                points_cnt += 1
 
         time.sleep(THREAD_INPUT_HANDLER_SLEEP_TIME)
 
