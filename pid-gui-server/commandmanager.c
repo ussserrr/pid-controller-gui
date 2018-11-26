@@ -63,7 +63,6 @@ void *_stream_thread(void *data) {
             ssize_t n = sendto(sockfd, (const void *)stream_buf, STREAM_BUF_SIZE, 0, (const struct sockaddr *)&clientaddr, clientlen);
             if (n < 0)
                 error("ERROR on sendto");
-            printf("sent\n");
 
             cnt++;
 
