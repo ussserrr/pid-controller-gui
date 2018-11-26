@@ -27,7 +27,7 @@ static float stream_values[2];
 #define STREAM_BUF_SIZE (sizeof(char)+2*sizeof(float))
 pthread_t pv_stream_thread_id;
 pthread_mutex_t sock_mutex;
-bool stream_run = false;
+volatile bool stream_run = false;  // to prevent compiler of deleting 'while' loop in _stream_thread
 
 static int cnt = 0;
 

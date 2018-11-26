@@ -95,7 +95,7 @@ int main() {
 //    unsigned char response_buf[BUF_SIZE];
 //    memset(response_buf, 0, BUF_SIZE);
 
-    int err = pthread_create(&pv_stream_thread_id, NULL, &_stream_thread, NULL);
+    int err = pthread_create(&pv_stream_thread_id, NULL, _stream_thread, NULL);
     if (err) {
         printf("%s\n", strerror(err));
         error("ERROR cannot create thread");
