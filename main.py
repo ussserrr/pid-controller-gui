@@ -450,6 +450,9 @@ class MainWindow(QMainWindow):
         if self.app.isOfflineMode:
             self.statusBar().addWidget(QLabel("<font color='red'>Offline mode</font>"))
 
+        # self.hideEvent.connect(self.hideEventSlot)
+        # self.showEvent.connect(self.showEventSlot)
+
 
     def playpauseGraphs(self):
         if self.centralWidget.graphs.isRun:
@@ -471,6 +474,20 @@ class MainWindow(QMainWindow):
             self.app.mainWindow.centralWidget.refreshAllPIDvalues()
         else:
             MessageWindow(text='Saving failed!', type='Error')
+
+
+    def hideEvent(self, *args, **kwargs):
+        print("The app has been hide")
+        if self.centralWidget.graphs.isRun:
+            self.playpauseGraphs()
+        super(MainWindow, self).hideEvent(*args, **kwargs)
+
+
+    def showEvent(self, *args, **kwargs):
+        print("The app has been restored")
+        if self.centralWidget.graphs.wasRun:
+            self.playpauseGraphs()
+        super(MainWindow, self).showEvent(*args, **kwargs)
 
 
     def closeEvent(self, QCloseEvent):
@@ -515,8 +532,6 @@ class MainApplication(QApplication):
         # self.test_timer.timeout.connect(self.test)
         # self.test_timer.start(500)  # every 5 seconds
 
-        self.applicationStateChanged.connect(self.applicationStateChangedSlot)
-
         self.mainWindow = MainWindow(self)
         self.mainWindow.show()
 
@@ -553,20 +568,8 @@ class MainApplication(QApplication):
             if self.mainWindow.centralWidget.graphs.isRun:
                 self.mainWindow.playpauseGraphs()
             self.mainWindow.statusBar().addWidget(self.connLostStatusBarLabel)
-            MessageWindow(text="Connection was lost. App goes to the Offline mode and will be trying to reconnect",
-                          type='Warning')  # TODO: stop stream on controller if no 'ping' messages
-
-
-    def applicationStateChangedSlot(self, Qt_ApplicationState):
-        print(Qt_ApplicationState)
-        if Qt_ApplicationState <= Qt.ApplicationHidden:
-            print("The app has been hide")
-            if self.mainWindow.centralWidget.graphs.isRun:
-                self.mainWindow.playpauseGraphs()
-        else:
-            print("The app has been restored")
-            if self.mainWindow.centralWidget.graphs.wasRun:
-                self.mainWindow.playpauseGraphs()
+            # MessageWindow(text="Connection was lost. App goes to the Offline mode and will be trying to reconnect",
+            #               type='Warning')  # TODO: stop stream on controller if no 'ping' messages
 
 
 
