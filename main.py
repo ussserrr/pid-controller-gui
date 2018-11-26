@@ -515,6 +515,8 @@ class MainApplication(QApplication):
         # self.test_timer.timeout.connect(self.test)
         # self.test_timer.start(500)  # every 5 seconds
 
+        self.applicationStateChanged.connect(self.applicationStateChangedSlot)
+
         self.mainWindow = MainWindow(self)
         self.mainWindow.show()
 
@@ -555,9 +557,22 @@ class MainApplication(QApplication):
                           type='Warning')  # TODO: stop stream on controller if no 'ping' messages
 
 
+    def applicationStateChangedSlot(self, Qt_ApplicationState):
+        print(Qt_ApplicationState)
+        if Qt_ApplicationState <= Qt.ApplicationHidden:
+            print("The app has been hide")
+            if self.mainWindow.centralWidget.graphs.isRun:
+                self.mainWindow.playpauseGraphs()
+        else:
+            print("The app has been restored")
+            if self.mainWindow.centralWidget.graphs.wasRun:
+                self.mainWindow.playpauseGraphs()
+
+
 
 
 if __name__ == '__main__':
+
     ORGANIZATION_NAME = 'Andrey Chufyrev'
     APPLICATION_NAME = 'PID controller GUI'
     QCoreApplication.setOrganizationName(ORGANIZATION_NAME)

@@ -211,6 +211,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
         self.stream_pipe_rx = stream_pipe_rx
         self.isRun = False
+        self.wasRun = False
 
         self.procVarGraph = self.addPlot(y=np.zeros([self.nPoints]),
                                          labels={'right': "Process Variable"},
@@ -260,8 +261,10 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
     def toggle_live_graphs(self):
         if self.isRun:
             self.pause_live_graphs()
+            self.wasRun = True
         else:
             self.start_live_graphs()
+            self.wasRun = False
 
 
     def update_graphs(self):
@@ -277,6 +280,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
                     self.cnt += 1
             except OSError:
                 print("OSError")
+                pass
 
         self.procVarAverLabel.setValue(self.lastPoint['pv'])
         self.contOutAverLabel.setValue(self.lastPoint['co'])

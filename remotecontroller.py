@@ -230,9 +230,13 @@ def _thread_input_handler(sock_mutex, sock, var_cmd_pipe_tx, stream_pipe_tx):
         available = select.select([sock], [], [], 0)
 
         if available[0] == [sock]:
-            payload = sock.recv(BUF_SIZE)   # TODO: add timeout, also can overflow!
+            try:
+                payload = sock.recv(BUF_SIZE)   # TODO: add timeout, also can overflow!
+                response = _parse_response(payload)
+            except ConnectionResetError as e:
+                print(e)
+                sigterm_handler(0, 0)
 
-            response = _parse_response(payload)
             if response['var_cmd'] == 'stream':
                 stream_pipe_tx.send(response['values'])  # TODO: maybe this can block, overflow!
                 points_cnt += 1
