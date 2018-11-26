@@ -537,6 +537,7 @@ class MainApplication(QApplication):
         else:
             if self.isOfflineMode:
                 self.isOfflineMode = False
+                print("reconnected")
                 self.mainWindow.centralWidget.refreshAllPIDvalues()
                 self.mainWindow.statusBar().removeWidget(self.connLostStatusBarLabel)
                 self.mainWindow.statusBar().showMessage('Reconnected')
@@ -547,8 +548,8 @@ class MainApplication(QApplication):
         if not self.isOfflineMode:
             self.isOfflineMode = True
             print('lost connection')
-            # if self.mainWindow.centralWidget.graphs.isRun:
-            #     self.mainWindow.playpauseGraphs()
+            if self.mainWindow.centralWidget.graphs.isRun:
+                self.mainWindow.playpauseGraphs()
             self.mainWindow.statusBar().addWidget(self.connLostStatusBarLabel)
             MessageWindow(text="Connection was lost. App goes to the Offline mode and will be trying to reconnect",
                           type='Warning')  # TODO: stop stream on controller if no 'ping' messages

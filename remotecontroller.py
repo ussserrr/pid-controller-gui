@@ -284,6 +284,8 @@ class RemoteController:
                 self.isOfflineMode = True
                 self.close()
 
+            self.stream.stop()
+
 
     def read(self, what):
         # TODO: actually, we can calculate controller output by yourself using the same algo as in the controller
