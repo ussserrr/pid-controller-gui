@@ -1,3 +1,4 @@
+import os
 import queue
 import sys
 import signal
@@ -217,12 +218,12 @@ def _thread_input_handler(sock_mutex, sock, var_cmd_pipe_tx, stream_pipe_tx):
     """
 
     def sigterm_handler(sig, frame):
-        # print(f"socket: {points_cnt}")
+        print(f"socket: {points_cnt}")
         sys.exit()
 
     signal.signal(signal.SIGTERM, sigterm_handler)
 
-    # points_cnt = 0
+    points_cnt = 0
 
     while True:
         # with sock_mutex:
@@ -237,13 +238,13 @@ def _thread_input_handler(sock_mutex, sock, var_cmd_pipe_tx, stream_pipe_tx):
             else:
                 var_cmd_pipe_tx.send(response)  # TODO: this can block! maybe check queue.Full (overflow)
                 # var_cmd_queue.put(response)  # TODO: this can block! maybe check queue.Full (overflow)
-                # points_cnt += 1
+                points_cnt += 1
 
         time.sleep(THREAD_INPUT_HANDLER_SLEEP_TIME)
 
 
 
-class RemoteController():
+class RemoteController:
     """
 
     """
@@ -371,7 +372,8 @@ class RemoteController():
 
 
     def saveToEEPROM(self):
-        return self.read('save_to_eeprom')
+        # TODO: check output
+        return self.read('save_to_eeprom')[0]
 
 
     def checkConnection(self, timeout=CHECK_CONNECTION_TIMEOUT_DEFAULT):
@@ -424,4 +426,17 @@ class RemoteController():
 
 if __name__ == '__main__':
 
-    print("Hello")
+    main_thread_pid = os.getpid()
+    print(main_thread_pid)
+    conn = RemoteController('127.0.0.1', 1200, thread_pid=main_thread_pid)
+
+    conn.stream.start()
+
+    for i in range(10):
+        if conn.stream.pipe_rx.poll():
+            point = conn.stream.pipe_rx.recv()
+            print(point)
+        else:
+            time.sleep(0.5)
+
+    conn.close()

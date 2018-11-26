@@ -519,14 +519,14 @@ class MainApplication(QApplication):
         self.mainWindow.show()
 
 
-    def test(self):
-        print("read all")
-        self.conn.saveCurrentValues()
+    # def test(self):
+    #     print("read all")
+    #     self.conn.saveCurrentValues()
 
 
     def quit(self):
         self.conn.close()
-        # print(f"pipe: {self.mainWindow.centralWidget.graphs.cnt}")
+        print(f"pipe: {self.mainWindow.centralWidget.graphs.cnt}")
         super(MainApplication, self).quit()
 
 

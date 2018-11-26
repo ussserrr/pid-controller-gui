@@ -241,7 +241,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         if start:
             self.start_live_graphs()
 
-        # self.cnt = 0
+        self.cnt = 0
 
 
     def start_live_graphs(self):
@@ -274,7 +274,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
                     point = self.stream_pipe_rx.recv()
                     self.lastPoint['pv'] = point[0]
                     self.lastPoint['co'] = point[1]
-                    # self.cnt += 1
+                    self.cnt += 1
             except OSError:
                 print("OSError")
 

@@ -31,40 +31,43 @@ bool stream_run = false;
 
 static int cnt = 0;
 
-void _stream_thread(void) {
-    
+void *_stream_thread(void *data) {
+
     struct timespec pv_thread_delay = {
         .tv_sec = 0,        /* seconds */
-//        .tv_nsec = 500000000  // 0.5 s
+       // .tv_nsec = 500000000  // 0.5 s
 //        .tv_nsec = 16666667       /* nanoseconds */  // 60 FPS
         .tv_nsec = 20000000
     };
-    
+
     unsigned char stream_buf[STREAM_BUF_SIZE];
     stream_buf[0] = STREAM_PREFIX;
-    
+
     double x = 0.0;
     double const dx = 0.1;
 
+    printf("Hello from thread\n");
+
     while (1) {
         if (stream_run) {
-            pthread_mutex_lock(&sock_mutex);
+            // pthread_mutex_lock(&sock_mutex);
 
             if (x > 2.0*M_PI)
                 x = 0.0;
             stream_values[0] = (float)sin(x);  // Process Variable
             stream_values[1] = (float)cos(x);  // Controller Output
             x = x + dx;
-            
+
             memcpy(&stream_buf[1], stream_values, 2*sizeof(float));
-            
+
             ssize_t n = sendto(sockfd, (const void *)stream_buf, STREAM_BUF_SIZE, 0, (const struct sockaddr *)&clientaddr, clientlen);
             if (n < 0)
                 error("ERROR on sendto");
-            
+            printf("sent\n");
+
             cnt++;
 
-            pthread_mutex_unlock(&sock_mutex);
+            // pthread_mutex_unlock(&sock_mutex);
             nanosleep(&pv_thread_delay, NULL);
         }
     }
@@ -85,7 +88,7 @@ static float err_I_limits[2] = {-6500.0f, 6500.0f};
 
 int process_request(unsigned char *request_buf) {
 //int process_request(unsigned char *request_buf, unsigned char *response_buf) {
-    
+
     int result = 0;
 
     response_t request;
@@ -97,10 +100,10 @@ int process_request(unsigned char *request_buf) {
 
 //    float values[2];
 //    memset(values, 0, 2*sizeof(float));
-    
+
 //    printf("OPCODE: 0x%X\n", opcode);
 //    printf("VAR CMD: 0x%X\n", var_cmd);
-    
+
     if (request.opcode == OPCODE_read) {
         printf("read: ");
         memset(&request_buf[1], 0, 2*sizeof(float));
@@ -110,7 +113,7 @@ int process_request(unsigned char *request_buf) {
                 if (stream_run) {
 //                    pthread_mutex_lock(&sock_mutex);
                     stream_run = false;
-                    printf("%d\n", cnt);
+                    printf("points: %d\n", cnt);
                     cnt = 0;
 //                    pthread_mutex_unlock(&sock_mutex);
                 }
@@ -122,7 +125,7 @@ int process_request(unsigned char *request_buf) {
                     stream_run = true;
                 result = RESULT_ok;
                 break;
-                
+
             case VAR_setpoint:
                 printf("VAR_setpoint\n");
                 memcpy(&request_buf[1], &setpoint, sizeof(float));
@@ -165,12 +168,12 @@ int process_request(unsigned char *request_buf) {
 //                memcpy(values, err_I_limits, 2*sizeof(float));
                 result = RESULT_ok;
                 break;
-                
+
             case CMD_save_to_eeprom:
-                printf("Save to EEPROM\n");
+                printf("CMD_save_to_eeprom\n");
                 result = RESULT_ok;
                 break;
-                
+
             default:
                 printf("Unknown request\n");
                 result = RESULT_error;
@@ -229,7 +232,7 @@ int process_request(unsigned char *request_buf) {
 //                memcpy(err_I_limits, values, 2*sizeof(float));
                 result = RESULT_ok;
                 break;
-                
+
             default:
                 printf("Unknown request\n");
                 result = RESULT_error;

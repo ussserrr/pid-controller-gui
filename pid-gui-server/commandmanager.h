@@ -12,14 +12,16 @@
 
 #include <stdio.h>
 #include <string.h>  // for memset()
-//#include <time.h>
+// #include <time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <math.h>
 
-#include "/usr/local/Cellar/libsodium/1.0.16/include/sodium.h"
+#include "sodium.h"
+
+#define M_PI 3.14159265358979323846264338327
 
 
 extern int sockfd;
@@ -37,20 +39,20 @@ enum {
 
 enum {
     VAR_setpoint = 0b0100,
-    
+
     VAR_kP = 0b0101,
     VAR_kI = 0b0110,
     VAR_kD = 0b0111,
-    
+
     VAR_err_I = 0b1000,
-    
+
     VAR_err_P_limits = 0b1001,
     VAR_err_I_limits = 0b1010,
-    
+
 // special
     CMD_stream_start = 0b0001,
     CMD_stream_stop = 0b0000,
-    
+
     CMD_save_to_eeprom = 0b1011
 };
 
@@ -84,7 +86,7 @@ typedef struct response {
 
 void error(char *msg);
 
-void _stream_thread(void);
+void *_stream_thread(void *data);
 int process_request(unsigned char *request_buf);
 //int process_request(unsigned char *request_buf, unsigned char *response_buf);
 
