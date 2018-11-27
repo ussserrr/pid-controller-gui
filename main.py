@@ -450,9 +450,6 @@ class MainWindow(QMainWindow):
         if self.app.isOfflineMode:
             self.statusBar().addWidget(QLabel("<font color='red'>Offline mode</font>"))
 
-        # self.hideEvent.connect(self.hideEventSlot)
-        # self.showEvent.connect(self.showEventSlot)
-
 
     def playpauseGraphs(self):
         if self.centralWidget.graphs.isRun:
@@ -478,6 +475,8 @@ class MainWindow(QMainWindow):
 
     def hideEvent(self, *args, **kwargs):
         print("The app has been hide")
+        if not self.app.isOfflineMode:
+            self.app.connCheckTimer.stop()
         if self.centralWidget.graphs.isRun:
             self.playpauseGraphs()
         super(MainWindow, self).hideEvent(*args, **kwargs)
@@ -485,6 +484,8 @@ class MainWindow(QMainWindow):
 
     def showEvent(self, *args, **kwargs):
         print("The app has been restored")
+        if not self.app.isOfflineMode:
+            self.app.connCheckTimer.start(self.app.settings['network']['checkInterval'])
         if self.centralWidget.graphs.wasRun:
             self.playpauseGraphs()
         super(MainWindow, self).showEvent(*args, **kwargs)
@@ -500,7 +501,7 @@ class MainApplication(QApplication):
     # TODO: apply settings on-the-fly (not requiring a reboot)
     # TODO: add more ToolTips and StatusTips for elements
 
-    def __init__(self, argv, thread_pid=None):
+    def __init__(self, argv):
         super(MainApplication, self).__init__(argv)
 
         self.settings = Settings(defaults='defaultSettings.json')
@@ -511,8 +512,7 @@ class MainApplication(QApplication):
         self.connLostStatusBarLabel = QLabel("<font color='red'>Connection was lost. Trying to reconnect...</font>")
 
         self.isOfflineMode = False
-        self.conn = RemoteController(self.settings['network']['ip'], self.settings['network']['port'],
-                                     thread_pid=thread_pid)
+        self.conn = RemoteController(self.settings['network']['ip'], self.settings['network']['port'])
         if self.conn.isOfflineMode:
             self.isOfflineMode = True
             print("offline mode")
@@ -522,7 +522,7 @@ class MainApplication(QApplication):
             # if connection is present and no demo mode then create timer for connection checking
             self.connCheckTimer = QTimer()
             self.connCheckTimer.timeout.connect(self.connCheckTimerHandler)
-            self.connCheckTimer.start(self.settings['network']['checkInterval'])  # every 5 seconds
+            # self.connCheckTimer.start(self.settings['network']['checkInterval'])  # every 5 seconds
             # also create handler function for connection lost (for example, when reading some coefficient from MCU)
             self.conn.connLost.signal.connect(self.connLostHandler)
 
@@ -576,13 +576,11 @@ class MainApplication(QApplication):
 
 if __name__ == '__main__':
 
-    ORGANIZATION_NAME = 'Andrey Chufyrev'
-    APPLICATION_NAME = 'PID controller GUI'
-    QCoreApplication.setOrganizationName(ORGANIZATION_NAME)
-    QCoreApplication.setApplicationName(APPLICATION_NAME)
+    QCoreApplication.setOrganizationName("Andrey Chufyrev")
+    QCoreApplication.setApplicationName("PID controller GUI")
 
-    main_thread_pid = os.getpid()
-    app = MainApplication(sys.argv, thread_pid=main_thread_pid)
+    # main_thread_pid = os.getpid()
+    app = MainApplication(sys.argv)
 
     sys.exit(app.exec_())
 >>>>>>> 9a70e43... initial commit

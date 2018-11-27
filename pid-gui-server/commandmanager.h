@@ -11,25 +11,36 @@
 
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>  // for memset()
-// #include <time.h>
+#include <time.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <math.h>
 
-#include "sodium.h"
+// #include "sodium.h"
 
-#define M_PI 3.14159265358979323846264338327
+#ifndef M_PI
+#define M_PI 3.14159265358979323846264338328
+#endif
 
 
 extern int sockfd;
 extern struct sockaddr_in clientaddr;  // client address
 extern socklen_t clientlen;  // byte size of client's address
 
-extern pthread_mutex_t sock_mutex;
+// extern pthread_mutex_t sock_mutex;
 extern pthread_t pv_stream_thread_id;
+extern volatile bool stream_run;
+extern volatile bool stream_was_run;
+extern int points_cnt;
+#define STREAM_BUF_SIZE (sizeof(char)+2*sizeof(float))
+extern float stream_values[2];
+
 
 
 enum {
@@ -49,7 +60,7 @@ enum {
     VAR_err_P_limits = 0b1001,
     VAR_err_I_limits = 0b1010,
 
-// special
+    // special
     CMD_stream_start = 0b0001,
     CMD_stream_stop = 0b0000,
 
@@ -87,6 +98,9 @@ typedef struct response {
 void error(char *msg);
 
 void *_stream_thread(void *data);
+void stream_start(void);
+void stream_stop(void);
+
 int process_request(unsigned char *request_buf);
 //int process_request(unsigned char *request_buf, unsigned char *response_buf);
 

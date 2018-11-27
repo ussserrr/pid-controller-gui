@@ -19,10 +19,10 @@ FLOAT_SIZE = 4
 
 THREAD_INPUT_HANDLER_SLEEP_TIME = 0.005
 
-CHECK_CONNECTION_TIMEOUT_FIRST_CHECK = 5.0
-CHECK_CONNECTION_TIMEOUT_DEFAULT = 0.1
+CHECK_CONNECTION_TIMEOUT_FIRST_CHECK = 2.0
+CHECK_CONNECTION_TIMEOUT_DEFAULT = 1.0
 
-READ_WRITE_TIMEOUT_SYNCHRONOUS = 0.1
+READ_WRITE_TIMEOUT_SYNCHRONOUS = 1.0
 
 
 
@@ -233,7 +233,7 @@ def _thread_input_handler(sock_mutex, sock, var_cmd_pipe_tx, stream_pipe_tx):
             try:
                 payload = sock.recv(BUF_SIZE)   # TODO: add timeout, also can overflow!
                 response = _parse_response(payload)
-            except ConnectionResetError as e:
+            except ConnectionResetError as e:  # Windows exception
                 print(e)
                 sigterm_handler(0, 0)
 
@@ -259,36 +259,34 @@ class RemoteController:
         signal = pyqtSignal()
 
 
-    def __init__(self, ipAddr, udpPort, thread_pid=None):
+    def __init__(self, ipAddr, udpPort):
 
-        if thread_pid is not None:
+        self.cont_ip_port = (ipAddr, udpPort)
 
-            self.cont_ip_port = (ipAddr, udpPort)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # TODO: wrap sock on OSError everywhere
+        self.sock.settimeout(0)  # explicitly set non-blocking mode
 
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # TODO: wrap sock on OSError everywhere
-            self.sock.settimeout(0)  # explicitly set non-blocking mode
+        self.sock_mutex = multiprocessing.Lock()
 
-            self.sock_mutex = multiprocessing.Lock()
+        # self.var_cmd_queue = multiprocessing.Queue()
+        self.var_cmd_pipe_rx, self.var_cmd_pipe_tx = multiprocessing.Pipe(duplex=False)
 
-            # self.var_cmd_queue = multiprocessing.Queue()
-            self.var_cmd_pipe_rx, self.var_cmd_pipe_tx = multiprocessing.Pipe(duplex=False)
+        self.stream = Stream(conn=self)
 
-            self.stream = Stream(conn=self)
+        self.input_handler = multiprocessing.Process(
+            target=_thread_input_handler,
+            args=(self.sock_mutex, self.sock, self.var_cmd_pipe_tx, self.stream.pipe_tx)
+            # args = (self.sock_mutex, self.sock, self.var_cmd_queue, self.streams['pv'].pipe_tx)
+        )
+        self.input_handler.start()
 
-            self.input_handler = multiprocessing.Process(
-                target=_thread_input_handler,
-                args=(self.sock_mutex, self.sock, self.var_cmd_pipe_tx, self.stream.pipe_tx)
-                # args = (self.sock_mutex, self.sock, self.var_cmd_queue, self.streams['pv'].pipe_tx)
-            )
-            self.input_handler.start()
+        self.connLost = self.Signal()
 
-            self.connLost = self.Signal()
+        if self.checkConnection(timeout=CHECK_CONNECTION_TIMEOUT_FIRST_CHECK) != 0:
+            self.isOfflineMode = True
+            self.close()
 
-            if self.checkConnection(timeout=CHECK_CONNECTION_TIMEOUT_FIRST_CHECK) != 0:
-                self.isOfflineMode = True
-                self.close()
-
-            self.stream.stop()
+        self.stream.stop()
 
 
     def read(self, what):
@@ -391,9 +389,14 @@ class RemoteController:
         # except:
         #     pass
 
-        self.sock.sendto(request, self.cont_ip_port)  # TODO: check socket reliability on test simple program
+        try:
+            self.sock.sendto(request, self.cont_ip_port)  # TODO: check socket reliability on test simple program
+        except OSError:
+            self.isOfflineMode = True
+            return 1
+
         if self.var_cmd_pipe_rx.poll(timeout=timeout):
-            self.var_cmd_pipe_rx.recv()
+            val = self.var_cmd_pipe_rx.recv()
         else:
             self.isOfflineMode = True
             return 1
