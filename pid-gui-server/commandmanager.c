@@ -21,16 +21,16 @@
 //    printf("0x%X\n", byte);
 //}
 
-// static float stream_values[2];
+static float stream_values[2];
 
 
-// #define STREAM_BUF_SIZE (sizeof(char)+2*sizeof(float))
+#define STREAM_BUF_SIZE (sizeof(char)+2*sizeof(float))
 pthread_t pv_stream_thread_id;
 // pthread_mutex_t sock_mutex;
-volatile bool stream_run = false;  // to prevent compiler of deleting 'while' loop in _stream_thread
-volatile bool stream_was_run = false;
+static volatile bool stream_run = false;  // to prevent compiler of deleting 'while' loop in _stream_thread
+static volatile bool stream_was_run = false;
 
-// static int points_cnt = 0;
+static int points_cnt = 0;
 
 void *_stream_thread(void *data) {
 
@@ -74,14 +74,14 @@ void *_stream_thread(void *data) {
 }
 
 
-void stream_start(void) {
+static void stream_start(void) {
     if (!stream_run) {
         stream_run = true;
         stream_was_run = false;
     }
 }
 
-void stream_stop(void) {
+static void stream_stop(void) {
     if (stream_run) {
         stream_run = false;
         stream_was_run = true;

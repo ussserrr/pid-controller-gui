@@ -479,11 +479,13 @@ class MainWindow(QMainWindow):
             self.app.connCheckTimer.stop()
         if self.centralWidget.graphs.isRun:
             self.playpauseGraphs()
+        self.app.conn.pause()
         super(MainWindow, self).hideEvent(*args, **kwargs)
 
 
     def showEvent(self, *args, **kwargs):
         print("The app has been restored")
+        self.app.conn.resume()
         if not self.app.isOfflineMode:
             self.app.connCheckTimer.start(self.app.settings['network']['checkInterval'])
         if self.centralWidget.graphs.wasRun:

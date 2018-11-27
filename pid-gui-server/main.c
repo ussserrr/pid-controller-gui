@@ -20,8 +20,8 @@ int sockfd;
 struct sockaddr_in clientaddr;  // client address
 socklen_t clientlen;  // byte size of client's address
 
-int points_cnt;
-float stream_values[2];
+// int points_cnt;
+// float stream_values[2];
 
 
 /*
@@ -98,11 +98,11 @@ int main() {
     //    unsigned char response_buf[BUF_SIZE];
     //    memset(response_buf, 0, BUF_SIZE);
 
-    // int err = pthread_create(&pv_stream_thread_id, NULL, _stream_thread, NULL);
-    // if (err) {
-    //     printf("%s\n", strerror(err));
-    //     error("ERROR cannot create thread");
-    // }
+    int err = pthread_create(&pv_stream_thread_id, NULL, _stream_thread, NULL);
+    if (err) {
+        printf("%s\n", strerror(err));
+        error("ERROR cannot create thread");
+    }
 
     struct timespec server_response_delay = {
         .tv_sec = 0,        /* seconds */
@@ -115,12 +115,12 @@ int main() {
     // #define NO_MSG_TIMEOUT 15000  // 15 seconds
     // volatile clock_t before = clock();
 
-    points_cnt = 0;
-    int stream_divider_cnt = 0;
-    unsigned char stream_buf[STREAM_BUF_SIZE];
-    stream_buf[0] = STREAM_PREFIX;
-    double x = 0.0;
-    double const dx = 0.1;
+    // points_cnt = 0;
+    // int stream_divider_cnt = 0;
+    // unsigned char stream_buf[STREAM_BUF_SIZE];
+    // stream_buf[0] = STREAM_PREFIX;
+    // double x = 0.0;
+    // double const dx = 0.1;
 
     /*
      *  main loop: wait for a datagram, process it, reply
@@ -142,32 +142,28 @@ int main() {
         // }
 
 
-        if (stream_run) {
-            if (stream_divider_cnt == 400) {
-                stream_divider_cnt = 0;
-                printf("stream running\n");
-            }
-            else if (!(stream_divider_cnt % 4)) {
-//                stream_divider_cnt = 0;
+//         if (stream_run) {
+//             if (stream_divider_cnt == 4) {
+// //                stream_divider_cnt = 0;
 
-                // send point
-                if (x > 2.0*M_PI)
-                    x = 0.0;
-                stream_values[0] = (float)sin(x);  // Process Variable
-                stream_values[1] = (float)cos(x);  // Controller Output
-                x = x + dx;
+//                 // send point
+//                 if (x > 2.0*M_PI)
+//                     x = 0.0;
+//                 stream_values[0] = (float)sin(x);  // Process Variable
+//                 stream_values[1] = (float)cos(x);  // Controller Output
+//                 x = x + dx;
 
-                memcpy(&stream_buf[1], stream_values, 2*sizeof(float));
+//                 memcpy(&stream_buf[1], stream_values, 2*sizeof(float));
 
-                ssize_t n = sendto(sockfd, (const void *)stream_buf, STREAM_BUF_SIZE, 0, (const struct sockaddr *)&clientaddr, clientlen);
-                if (n < 0)
-                    error("ERROR on sendto");
+//                 ssize_t n = sendto(sockfd, (const void *)stream_buf, STREAM_BUF_SIZE, 0, (const struct sockaddr *)&clientaddr, clientlen);
+//                 if (n < 0)
+//                     error("ERROR on sendto");
 
-                points_cnt++;
-            }
-            else
-                stream_divider_cnt++;
-        }
+//                 points_cnt++;
+//             }
+//             else
+//                 stream_divider_cnt++;
+//         }
 
 
         int data_len = 0;
@@ -221,11 +217,11 @@ int main() {
             // if (stream_was_run)
             //     stream_start();
         }
-        // else {
+        else {
         // no available data
         // pthread_mutex_unlock(&sock_mutex);
-        nanosleep(&server_response_delay, NULL);  // pause the main thread, then repeat
-        // }
+            nanosleep(&server_response_delay, NULL);  // pause the main thread, then repeat
+        }
     }
 
     return 0;

@@ -35,11 +35,11 @@ extern socklen_t clientlen;  // byte size of client's address
 
 // extern pthread_mutex_t sock_mutex;
 extern pthread_t pv_stream_thread_id;
-extern volatile bool stream_run;
-extern volatile bool stream_was_run;
-extern int points_cnt;
-#define STREAM_BUF_SIZE (sizeof(char)+2*sizeof(float))
-extern float stream_values[2];
+// extern volatile bool stream_run;
+// extern volatile bool stream_was_run;
+// extern int points_cnt;
+// #define STREAM_BUF_SIZE (sizeof(char)+2*sizeof(float))
+// extern float stream_values[2];
 
 
 
@@ -98,8 +98,8 @@ typedef struct response {
 void error(char *msg);
 
 void *_stream_thread(void *data);
-void stream_start(void);
-void stream_stop(void);
+// void stream_start(void);
+// void stream_stop(void);
 
 int process_request(unsigned char *request_buf);
 //int process_request(unsigned char *request_buf, unsigned char *response_buf);

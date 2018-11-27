@@ -205,12 +205,12 @@ class Stream:
 
 
 
-def _thread_input_handler(sock_mutex, sock, var_cmd_pipe_tx, stream_pipe_tx):
+def _thread_input_handler(thread_mutex, sock, var_cmd_pipe_tx, stream_pipe_tx):
 # def _thread_input_handler(sock_mutex, sock, var_cmd_queue, stream_pipe_tx):
 
     """
 
-    :param sock_mutex:
+    :param thread_mutex:
     :param sock:
     :param var_cmd_queue:
     :param stream_pipe_tx:
@@ -226,23 +226,23 @@ def _thread_input_handler(sock_mutex, sock, var_cmd_pipe_tx, stream_pipe_tx):
     points_cnt = 0
 
     while True:
-        # with sock_mutex:
-        available = select.select([sock], [], [], 0)
+        with thread_mutex:
+            available = select.select([sock], [], [], 0)
 
-        if available[0] == [sock]:
-            try:
-                payload = sock.recv(BUF_SIZE)   # TODO: add timeout, also can overflow!
-                response = _parse_response(payload)
-            except ConnectionResetError as e:  # Windows exception
-                print(e)
-                sigterm_handler(0, 0)
+            if available[0] == [sock]:
+                try:
+                    payload = sock.recv(BUF_SIZE)   # TODO: add timeout, also can overflow!
+                    response = _parse_response(payload)
+                except ConnectionResetError as e:  # Windows exception
+                    print(e)
+                    sigterm_handler(0, 0)
 
-            if response['var_cmd'] == 'stream':
-                stream_pipe_tx.send(response['values'])  # TODO: maybe this can block, overflow!
-                points_cnt += 1
-            else:
-                var_cmd_pipe_tx.send(response)  # TODO: this can block! maybe check queue.Full (overflow)
-                # var_cmd_queue.put(response)  # TODO: this can block! maybe check queue.Full (overflow)
+                if response['var_cmd'] == 'stream':
+                    stream_pipe_tx.send(response['values'])  # TODO: maybe this can block, overflow!
+                    points_cnt += 1
+                else:
+                    var_cmd_pipe_tx.send(response)  # TODO: this can block! maybe check queue.Full (overflow)
+                    # var_cmd_queue.put(response)  # TODO: this can block! maybe check queue.Full (overflow)
 
         time.sleep(THREAD_INPUT_HANDLER_SLEEP_TIME)
 
@@ -266,7 +266,7 @@ class RemoteController:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # TODO: wrap sock on OSError everywhere
         self.sock.settimeout(0)  # explicitly set non-blocking mode
 
-        self.sock_mutex = multiprocessing.Lock()
+        self.input_thread_mutex = multiprocessing.Lock()
 
         # self.var_cmd_queue = multiprocessing.Queue()
         self.var_cmd_pipe_rx, self.var_cmd_pipe_tx = multiprocessing.Pipe(duplex=False)
@@ -275,7 +275,7 @@ class RemoteController:
 
         self.input_handler = multiprocessing.Process(
             target=_thread_input_handler,
-            args=(self.sock_mutex, self.sock, self.var_cmd_pipe_tx, self.stream.pipe_tx)
+            args=(self.input_thread_mutex, self.sock, self.var_cmd_pipe_tx, self.stream.pipe_tx)
             # args = (self.sock_mutex, self.sock, self.var_cmd_queue, self.streams['pv'].pipe_tx)
         )
         self.input_handler.start()
@@ -396,7 +396,7 @@ class RemoteController:
             return 1
 
         if self.var_cmd_pipe_rx.poll(timeout=timeout):
-            val = self.var_cmd_pipe_rx.recv()
+            self.var_cmd_pipe_rx.recv()
         else:
             self.isOfflineMode = True
             return 1
@@ -421,6 +421,17 @@ class RemoteController:
         # else:
         #     self.isOfflineMode = False
         #     return 0
+
+
+    def pause(self):
+        self.input_thread_mutex.acquire()
+
+
+    def resume(self):
+        try:
+            self.input_thread_mutex.release()
+        except ValueError:
+            pass
 
 
     def close(self):
