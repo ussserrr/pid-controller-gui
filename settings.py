@@ -221,8 +221,9 @@ class SettingsWindow(QWidget):
         if self.app.settings == self.settingsAtStart:  # MB HERE
             print("settings are same as at start")
             return
-        elif self.app.settings == self.app.settings.defaults:
+        elif (self.app.settings == self.app.settings.defaults):
             print("settings are same as default")
+            self.resetSettings()
             return
         else:
             self.app.settings.save(self.app.settings)  # MB HERE

@@ -176,8 +176,8 @@ class Stream:
 
     """
 
-    def __init__(self, conn=None):
-        self.conn = conn
+    def __init__(self, connection=None):
+        self.connection = connection
         self.pipe_rx, self.pipe_tx = multiprocessing.Pipe(duplex=False)
         self._is_run = False
 
@@ -185,11 +185,11 @@ class Stream:
         return self._is_run
 
     def start(self):
-        self.conn.read('stream_start')
+        self.connection.read('stream_start')
         self._is_run = True
 
     def stop(self):
-        self.conn.read('stream_stop')
+        self.connection.read('stream_stop')
         self._is_run = False
 
     def toggle(self):
@@ -205,44 +205,48 @@ class Stream:
 
 
 
-def _thread_input_handler(thread_mutex, sock, var_cmd_pipe_tx, stream_pipe_tx):
+def _thread_input_handler(input_lock, sock, control_pipe, var_cmd_pipe_tx, stream_pipe_tx):
 # def _thread_input_handler(sock_mutex, sock, var_cmd_queue, stream_pipe_tx):
 
-    """
-
-    :param thread_mutex:
-    :param sock:
-    :param var_cmd_queue:
-    :param stream_pipe_tx:
-    :return:
-    """
-
     def sigterm_handler(sig, frame):
-        print(f"socket: {points_cnt}")
+        # print(f"socket: {stream_msg_cnt}")
         sys.exit()
 
     signal.signal(signal.SIGTERM, sigterm_handler)
 
-    points_cnt = 0
+    stream_allowed = True
+    stream_msg_cnt = 0
 
     while True:
-        with thread_mutex:
-            available = select.select([sock], [], [], 0)
+        with input_lock:
 
+            available = select.select([sock], [], [], 0)
             if available[0] == [sock]:
                 try:
                     payload = sock.recv(BUF_SIZE)   # TODO: add timeout, also can overflow!
                     response = _parse_response(payload)
-                except ConnectionResetError as e:  # Windows exception
-                    print(e)
+                except ConnectionResetError:  # Windows exception
                     sigterm_handler(0, 0)
 
                 if response['var_cmd'] == 'stream':
-                    stream_pipe_tx.send(response['values'])  # TODO: maybe this can block, overflow!
-                    points_cnt += 1
+                    if stream_allowed:
+                        stream_pipe_tx.send(response['values'])  # TODO: maybe this can block, overflow!
+                        stream_msg_cnt += 1
                 else:
                     var_cmd_pipe_tx.send(response)  # TODO: this can block! maybe check queue.Full (overflow)
                     # var_cmd_queue.put(response)  # TODO: this can block! maybe check queue.Full (overflow)
+
+        if control_pipe.poll():
+            cmd = control_pipe.recv()
+            if cmd == 'get':
+                control_pipe.send(stream_msg_cnt)
+            elif cmd == 'rst':
+                stream_allowed = False
+                stream_msg_cnt = 0
+            elif cmd == 'run':
+                stream_allowed = True
+            # elif cmd == 'stop':
+
 
         time.sleep(THREAD_INPUT_HANDLER_SLEEP_TIME)
 
@@ -267,15 +271,16 @@ class RemoteController:
         self.sock.settimeout(0)  # explicitly set non-blocking mode
 
         self.input_thread_mutex = multiprocessing.Lock()
+        self.input_thread_control_pipe_main, self.input_thread_control_pipe_thread = multiprocessing.Pipe(duplex=True)
 
         # self.var_cmd_queue = multiprocessing.Queue()
         self.var_cmd_pipe_rx, self.var_cmd_pipe_tx = multiprocessing.Pipe(duplex=False)
 
-        self.stream = Stream(conn=self)
+        self.stream = Stream(connection=self)
 
         self.input_handler = multiprocessing.Process(
             target=_thread_input_handler,
-            args=(self.input_thread_mutex, self.sock, self.var_cmd_pipe_tx, self.stream.pipe_tx)
+            args=(self.input_thread_mutex, self.sock, self.input_thread_control_pipe_thread, self.var_cmd_pipe_tx, self.stream.pipe_tx)
             # args = (self.sock_mutex, self.sock, self.var_cmd_queue, self.streams['pv'].pipe_tx)
         )
         self.input_handler.start()
@@ -436,10 +441,16 @@ class RemoteController:
 
     def close(self):
         self.stream.close()
+
         # self.var_cmd_queue.close()
         self.var_cmd_pipe_rx.close()
         self.var_cmd_pipe_tx.close()
+
+        self.input_thread_control_pipe_main.close()
+        self.input_thread_control_pipe_thread.close()
+
         self.input_handler.terminate()
+
         self.sock.close()
 
 

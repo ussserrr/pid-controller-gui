@@ -192,7 +192,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
     """
 
     def __init__(self, nPoints=200, procVarRange=(0.0, 0.0), contOutRange=(0.0, 0.0), interval=19,
-                 stream_pipe_rx=None, theme='dark', start=False):
+                 control_pipe=None, stream_pipe_rx=None, theme='dark', start=False):
 
         if theme != 'dark':
             pyqtgraph.setConfigOption('background', 'w')
@@ -209,9 +209,12 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
         self.timeAxes = np.linspace(-nPoints*interval, 0, nPoints)
 
+        self.control_pipe = control_pipe
+        self.overflowCheckTimer = QTimer()
+        self.overflowCheckTimer.timeout.connect(self.overflowCheck)
+
         self.stream_pipe_rx = stream_pipe_rx
         self.isRun = False
-        self.wasRun = False
 
         self.procVarGraph = self.addPlot(y=np.zeros([self.nPoints]),
                                          labels={'right': "Process Variable"},
@@ -242,29 +245,63 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         if start:
             self.start_live_graphs()
 
-        self.cnt = 0
+        self.points_cnt = 0
+
+
+    def overflowCheck(self):
+        self.control_pipe.send('get')
+        if self.control_pipe.poll(timeout=0.1):
+            input_thread_points_cnt = self.control_pipe.recv()
+            print(f'sock: {input_thread_points_cnt}, plot: {self.points_cnt}')
+            if input_thread_points_cnt - self.points_cnt >= input_thread_points_cnt * 0.05:
+                print('overflow!')  # maybe notify the main, maybe use the signal
+                self.pause_live_graphs()
+                # self.control_pipe.send('rst')
+                # while True:
+                #     if self.stream_pipe_rx.poll():
+                #         self.stream_pipe_rx.recv()
+                #     else:
+                #         break
+                # self.points_cnt = 0
+                self.start_live_graphs()
+                # self.control_pipe.send('run')
+                # 1. stop incoming stream
+                # 2. flush self.pipe (maybe plot this points, maybe drop them)
+                # 3. restart the stream
 
 
     def start_live_graphs(self):
-        self.isRun = True
+        self.overflowCheckTimer.start(10000)
         # reset data cause it has changed during the pause time
         self.procVarGraph.curves[0].setData(self.timeAxes, np.zeros([self.nPoints]))
         self.contOutGraph.curves[0].setData(self.timeAxes, np.zeros([self.nPoints]))
         self.updateTimer.start(self.interval)
 
+        self.control_pipe.send('run')
+
+        self.isRun = True
+
 
     def pause_live_graphs(self):
-        self.isRun = False
+        self.overflowCheckTimer.stop()
         self.updateTimer.stop()
+
+        self.control_pipe.send('rst')
+        while True:
+            if self.stream_pipe_rx.poll():
+                self.stream_pipe_rx.recv()
+            else:
+                break
+        self.points_cnt = 0
+
+        self.isRun = False
 
 
     def toggle_live_graphs(self):
         if self.isRun:
             self.pause_live_graphs()
-            self.wasRun = True
         else:
             self.start_live_graphs()
-            self.wasRun = False
 
 
     def update_graphs(self):
@@ -277,7 +314,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
                     point = self.stream_pipe_rx.recv()
                     self.lastPoint['pv'] = point[0]
                     self.lastPoint['co'] = point[1]
-                    self.cnt += 1
+                    self.points_cnt += 1
             except OSError:
                 print("OSError")
                 pass

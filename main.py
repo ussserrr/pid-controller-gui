@@ -325,6 +325,7 @@ class CentralWidget(QWidget):
             procVarRange=(-2.0, 2.0),  # TODO: store as variables or make settings for these
             contOutRange=(-2.0, 2.0),
             interval=app.settings['graphs']['updateInterval'],
+            control_pipe=self.app.conn.input_thread_control_pipe_main,
             stream_pipe_rx=None if self.app.isOfflineMode else self.app.conn.stream.pipe_rx,
             theme=app.settings['appearance']['theme'],
             start=False
@@ -441,6 +442,7 @@ class MainWindow(QMainWindow):
         self.playpauseButton = graphsToolbar.widgetForAction(playpauseAction)
         self.playpauseButton.setCheckable(True)
         self.playpauseButton.setChecked(True)
+        self.graphsWasRun = False
 
         mainMenu = self.menuBar().addMenu('&Menu')
         mainMenu.addAction(exitAction)
@@ -479,6 +481,9 @@ class MainWindow(QMainWindow):
             self.app.connCheckTimer.stop()
         if self.centralWidget.graphs.isRun:
             self.playpauseGraphs()
+            self.graphsWasRun = True
+        else:
+            self.graphsWasRun = False
         self.app.conn.pause()
         super(MainWindow, self).hideEvent(*args, **kwargs)
 
@@ -488,7 +493,7 @@ class MainWindow(QMainWindow):
         self.app.conn.resume()
         if not self.app.isOfflineMode:
             self.app.connCheckTimer.start(self.app.settings['network']['checkInterval'])
-        if self.centralWidget.graphs.wasRun:
+        if self.graphsWasRun:
             self.playpauseGraphs()
         super(MainWindow, self).showEvent(*args, **kwargs)
 
@@ -530,22 +535,13 @@ class MainApplication(QApplication):
 
         self.conn.saveCurrentValues()
 
-        # self.test_timer = QTimer()
-        # self.test_timer.timeout.connect(self.test)
-        # self.test_timer.start(500)  # every 5 seconds
-
         self.mainWindow = MainWindow(self)
         self.mainWindow.show()
 
 
-    # def test(self):
-    #     print("read all")
-    #     self.conn.saveCurrentValues()
-
-
     def quit(self):
         self.conn.close()
-        print(f"pipe: {self.mainWindow.centralWidget.graphs.cnt}")
+        print(f"pipe: {self.mainWindow.centralWidget.graphs.points_cnt}")
         super(MainApplication, self).quit()
 
 
@@ -570,8 +566,8 @@ class MainApplication(QApplication):
             if self.mainWindow.centralWidget.graphs.isRun:
                 self.mainWindow.playpauseGraphs()
             self.mainWindow.statusBar().addWidget(self.connLostStatusBarLabel)
-            # MessageWindow(text="Connection was lost. App goes to the Offline mode and will be trying to reconnect",
-            #               type='Warning')  # TODO: stop stream on controller if no 'ping' messages
+            MessageWindow(text="Connection was lost. App goes to the Offline mode and will be trying to reconnect",
+                          type='Warning')  # TODO: stop stream on controller if no 'ping' messages
 
 
 
@@ -581,7 +577,6 @@ if __name__ == '__main__':
     QCoreApplication.setOrganizationName("Andrey Chufyrev")
     QCoreApplication.setApplicationName("PID controller GUI")
 
-    # main_thread_pid = os.getpid()
     app = MainApplication(sys.argv)
 
     sys.exit(app.exec_())
