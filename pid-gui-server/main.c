@@ -111,9 +111,9 @@ int main() {
 
     printf("Server listening on port %d\n", portno);
 
-    // volatile int msec = 0;
-    // #define NO_MSG_TIMEOUT 15000  // 15 seconds
-    // volatile clock_t before = clock();
+    int msec = 0;
+    #define NO_MSG_TIMEOUT 15000  // 15 seconds
+    clock_t before = clock();
 
     // points_cnt = 0;
     // int stream_divider_cnt = 0;
@@ -127,19 +127,19 @@ int main() {
      */
     while (1) {
 
-        // clock_t difference = clock() - before;
-        // msec = difference * 1000 / CLOCKS_PER_SEC;
-        // if (msec > NO_MSG_TIMEOUT) {
-        //     printf("No incoming messages within a timeout, stop the stream\n");
-        //     stream_stop();
+        clock_t difference = clock() - before;
+        msec = difference * 1000 / CLOCKS_PER_SEC;
+        if (msec > NO_MSG_TIMEOUT) {
+            printf("No incoming messages within a timeout, stop the stream\n");
+            stream_stop();
 
-        //     before = clock();
-        //     msec = 0;
+            before = clock();
+            msec = 0;
 
-        //     // close(sockfd);
-        //     // pthread_kill(pv_stream_thread_id, SIGTERM);
-        //     // exit(0);
-        // }
+            // close(sockfd);
+            // pthread_kill(pv_stream_thread_id, SIGTERM);
+            // exit(0);
+        }
 
 
 //         if (stream_run) {
@@ -211,8 +211,8 @@ int main() {
             // pthread_mutex_unlock(&sock_mutex);
             memset(buf, 0, BUF_SIZE);  // reset the buffer
 
-            // before = clock();
-            // msec = 0;
+            before = clock();
+            msec = 0;
 
             // if (stream_was_run)
             //     stream_start();

@@ -290,12 +290,12 @@ from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGr
     QApplication, QSpinBox, QStatusBar, QProgressBar, QLineEdit, QCheckBox, QGridLayout, \
     QTabWidget, QMainWindow, QToolTip, QAction, QLayout, QSizePolicy, QButtonGroup
 from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtCore import QTimer, QCoreApplication, QSettings, Qt, QT_VERSION_STR
+from PyQt5.QtCore import QTimer, QCoreApplication, QSettings, Qt, QT_VERSION_STR, pyqtSlot
 from PyQt5.Qt import PYQT_VERSION_STR
 import qdarkstyle
 
+import remotecontroller
 from miscgraphics import MessageWindow, ValueGroupBox, CustomGraphicsLayoutWidget
-from remotecontroller import RemoteController
 from settings import Settings, SettingsWindow
 from errorssettings import ErrorsSettingsWindow
 from about import AboutWindow
@@ -463,12 +463,12 @@ class MainWindow(QMainWindow):
 
 
     def restoreContValues(self):
-        self.app.conn.restoreValues()
+        self.app.conn.restoreValues(self.app.conn.snapshots[0])
         self.centralWidget.refreshAllPIDvalues()
 
 
     def saveToEEPROM(self):
-        if self.app.conn.saveToEEPROM() == 0:
+        if self.app.conn.saveToEEPROM() == remotecontroller.result['ok']:
             MessageWindow(text='Successfully saved', type='Info')
             self.app.mainWindow.centralWidget.refreshAllPIDvalues()
         else:
@@ -519,7 +519,7 @@ class MainApplication(QApplication):
         self.connLostStatusBarLabel = QLabel("<font color='red'>Connection was lost. Trying to reconnect...</font>")
 
         self.isOfflineMode = False
-        self.conn = RemoteController(self.settings['network']['ip'], self.settings['network']['port'])
+        self.conn = remotecontroller.RemoteController(self.settings['network']['ip'], self.settings['network']['port'])
         if self.conn.isOfflineMode:
             self.isOfflineMode = True
             print("offline mode")
@@ -559,6 +559,7 @@ class MainApplication(QApplication):
 
 
     # handler function for the connLost slot
+    @pyqtSlot()
     def connLostHandler(self):
         if not self.isOfflineMode:
             self.isOfflineMode = True
@@ -566,8 +567,8 @@ class MainApplication(QApplication):
             if self.mainWindow.centralWidget.graphs.isRun:
                 self.mainWindow.playpauseGraphs()
             self.mainWindow.statusBar().addWidget(self.connLostStatusBarLabel)
-            MessageWindow(text="Connection was lost. App goes to the Offline mode and will be trying to reconnect",
-                          type='Warning')  # TODO: stop stream on controller if no 'ping' messages
+            MessageWindow(text="Connection was lost. The app goes to the Offline mode and will be trying to reconnect",
+                          type='Warning')
 
 
 

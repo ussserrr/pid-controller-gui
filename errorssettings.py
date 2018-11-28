@@ -4,6 +4,8 @@ from PyQt5.QtWidgets import QWidget, QGroupBox, QGridLayout, QHBoxLayout, QVBoxL
 from PyQt5.QtGui import QIcon, QDoubleValidator
 from PyQt5.QtCore import QTimer
 
+import remotecontroller
+
 
 
 valNumOfIntDigits = 7
@@ -123,7 +125,9 @@ class ErrorsSettingsWindow(QWidget):
 
 
     def resetIerr(self):
-        self.app.conn.resetIerr()
-        infoLabel = QLabel("Ierr has been reset")
-        self.statusBar.addWidget(infoLabel)
-        QTimer().singleShot(MSG_TIMEOUT, functools.partial(self.removeStatusBarWidget, infoLabel))
+        if self.app.conn.resetIerr() == remotecontroller.result['ok']:
+            statusLabel = QLabel("Ierr has been reset")
+        else:
+            statusLabel = QLabel("<font color='red'>Ierr reset error</font>")
+        self.statusBar.addWidget(statusLabel)
+        QTimer().singleShot(MSG_TIMEOUT, functools.partial(self.removeStatusBarWidget, statusLabel))

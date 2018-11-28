@@ -98,8 +98,8 @@ typedef struct response {
 void error(char *msg);
 
 void *_stream_thread(void *data);
-// void stream_start(void);
-// void stream_stop(void);
+void stream_start(void);
+void stream_stop(void);
 
 int process_request(unsigned char *request_buf);
 //int process_request(unsigned char *request_buf, unsigned char *response_buf);

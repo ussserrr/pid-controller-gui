@@ -1,5 +1,7 @@
+import copy
+import datetime
 import os
-import queue
+# import queue
 import sys
 import signal
 import socket
@@ -69,8 +71,6 @@ var_cmd = {
 
     'stream_start': 0b0001,
     'stream_stop': 0b0000,
-    # 'co_start': 0b0011,
-    # 'co_stop': 0b0010,
 
     'save_to_eeprom': 0b1011
 }
@@ -83,7 +83,6 @@ result = {
 result_reversed = {v: k for k, v in result.items()}
 
 stream_prefix = 0b00000001
-# stream_prefix_reversed = {v: k for k, v in stream_prefix.items()}
 
 
 
@@ -223,33 +222,81 @@ def _thread_input_handler(input_lock, sock, control_pipe, var_cmd_pipe_tx, strea
             available = select.select([sock], [], [], 0)
             if available[0] == [sock]:
                 try:
-                    payload = sock.recv(BUF_SIZE)   # TODO: add timeout, also can overflow!
+                    payload = sock.recv(BUF_SIZE)
                     response = _parse_response(payload)
                 except ConnectionResetError:  # Windows exception
                     sigterm_handler(0, 0)
 
                 if response['var_cmd'] == 'stream':
                     if stream_allowed:
-                        stream_pipe_tx.send(response['values'])  # TODO: maybe this can block, overflow!
+                        stream_pipe_tx.send(response['values'])
                         stream_msg_cnt += 1
                 else:
-                    var_cmd_pipe_tx.send(response)  # TODO: this can block! maybe check queue.Full (overflow)
-                    # var_cmd_queue.put(response)  # TODO: this can block! maybe check queue.Full (overflow)
+                    var_cmd_pipe_tx.send(response)
+                    # var_cmd_queue.put(response)
 
-        if control_pipe.poll():
-            cmd = control_pipe.recv()
-            if cmd == 'get':
-                control_pipe.send(stream_msg_cnt)
-            elif cmd == 'rst':
-                stream_allowed = False
-                stream_msg_cnt = 0
-            elif cmd == 'run':
-                stream_allowed = True
-            # elif cmd == 'stop':
+            if control_pipe.poll():
+                cmd = control_pipe.recv()
+                if cmd == 'get':
+                    control_pipe.send(stream_msg_cnt)
+                elif cmd == 'rst':
+                    stream_allowed = False
+                    stream_msg_cnt = 0
+                elif cmd == 'run':
+                    stream_allowed = True
 
 
         time.sleep(THREAD_INPUT_HANDLER_SLEEP_TIME)
 
+
+snapshot_template = {
+    'date': 'datetime.datetime.now()',
+
+    'setpoint': 0.0,
+    'kP': 0.0,
+    'kI': 0.0,
+    'kD': 0.0,
+    'err_P_limits': [-1.0, 1.0],
+    'err_I_limits': [-1.0, 1.0]
+}
+
+
+
+class RemoteControllerException(Exception):
+
+    def __init__(self, operation, thing, values):
+        super(RemoteControllerException, self).__init__()
+        self.operation = operation
+        self.thing = thing
+        self.values = values
+
+    def __str__(self):
+        return f"operation '{self.operation}' on '{self.thing}', supplied values: " + str(self.values)
+
+
+class MismatchException(Exception):
+
+    def __init__(self, operation, got, expected, values):
+        super(MismatchException, self).__init__()
+        self.operation = operation
+        self.got = got
+        self.expected = expected
+        self.values = values
+
+    def __str__(self):
+        return f"operation '{self.operation}': expected '{self.expected}', got '{self.got}'. Supplied values: " +\
+               str(self.values)
+
+
+class RequestKeyException(Exception):
+
+    def __init__(self, operation, key):
+        super(RequestKeyException, self).__init__()
+        self.operation = operation
+        self.key = key
+
+    def __str__(self):
+        return f"Invalid key '{self.key}' for operation '{self.operation}'"
 
 
 class RemoteController:
@@ -257,14 +304,15 @@ class RemoteController:
 
     """
 
-    isOfflineMode = False
-
     class Signal(QObject):
         signal = pyqtSignal()
 
 
     def __init__(self, ipAddr, udpPort):
 
+        self.snapshots = []  # currently only one snapshot is created and used
+
+        self.isOfflineMode = False
         self.cont_ip_port = (ipAddr, udpPort)
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # TODO: wrap sock on OSError everywhere
@@ -294,13 +342,50 @@ class RemoteController:
         self.stream.stop()
 
 
+    def _parse_response(self, what, response=None):
+        if response is not None:
+            # online mode
+
+            if response['result'] == 'error':
+                raise RemoteControllerException(response['opcode'], response['var_cmd'], response['values'])
+            if response['var_cmd'] != what:
+                raise MismatchException(response['opcode'], response['var_cmd'], what, response['values'])
+
+            if response['opcode'] == 'read':
+                if response['var_cmd'] in ['setpoint', 'kP', 'kI', 'kD', 'err_I']:
+                    return response['values'][0]
+                elif response['var_cmd'] in ['err_P_limits', 'err_I_limits']:
+                    return response['values']
+                elif response['var_cmd'] in ['save_to_eeprom', 'stream_start', 'stream_stop']:
+                    return result[response['result']]  # 'ok'
+            else:
+                return result[response['result']]  # 'ok'
+
+        else:
+            # offline mode - fake data
+
+            if what in ['setpoint', 'kP', 'kI', 'kD', 'err_I']:
+                return random.random()
+            elif what in ['err_P_limits', 'err_I_limits']:
+                return random.random(), random.random()
+            elif what in ['save_to_eeprom', 'stream_start', 'stream_stop']:
+                return result['error']
+
+
+    def _make_request(self, operation, what, *values):
+        if what not in var_cmd.keys():
+            raise RequestKeyException(operation, what)
+
+        return _make_request(operation, what, *values)
+
+
     def read(self, what):
         # TODO: actually, we can calculate controller output by yourself using the same algo as in the controller
         # TODO: additionally parse the response somewhere to avoid the code like 'conn.read('coef')[0]' in the main
 
         if not self.isOfflineMode:
 
-            request = _make_request('read', what)
+            request = self._make_request('read', what)
 
             self.sock.sendto(request, self.cont_ip_port)
             if self.var_cmd_pipe_rx.poll(timeout=READ_WRITE_TIMEOUT_SYNCHRONOUS):
@@ -308,8 +393,8 @@ class RemoteController:
             else:
                 self.connLost.signal.emit()
                 # TODO: return also status (maybe a whole response structure)
-                return 0.0, 0.0
-            return response['values']
+                return self._parse_response(what)
+            return self._parse_response(what, response=response)
 
             # try:
             #     # with self.sock_mutex:
@@ -323,7 +408,7 @@ class RemoteController:
             #     return response['values']
 
         else:
-            return random.random(), random.random()
+            return self._parse_response(what)
 
 
     def write(self, what, *values):
@@ -331,7 +416,7 @@ class RemoteController:
 
         if not self.isOfflineMode:
 
-            request = _make_request('write', what, *values)
+            request = self._make_request('write', what, *values)
 
             self.sock.sendto(request, self.cont_ip_port)
             if self.var_cmd_pipe_rx.poll(timeout=READ_WRITE_TIMEOUT_SYNCHRONOUS):
@@ -340,7 +425,7 @@ class RemoteController:
                 self.connLost.signal.emit()
                 # TODO: return also status (maybe a whole response structure)
                 return result['error']
-            return result[response['result']]
+            return self._parse_response(what, response)
 
             # try:
             #     # with self.sock_mutex:
@@ -357,32 +442,42 @@ class RemoteController:
 
 
     def resetIerr(self):
-        return self.write('err_I', 0)
+        return self.write('err_I', 0.0)
 
 
     def saveCurrentValues(self):
+        snapshot = copy.deepcopy(snapshot_template)
+        for key, value in snapshot.items():
+            if key != 'date':
+                value = self.read(key)
+        snapshot['date'] = datetime.datetime.now()
+        self.snapshots.append(snapshot)
+
         # TODO: store configuration snapshots (so return the snapshot here and receive a snapshot as an argument at restoreValues())
-        self.setpoint = self.read('setpoint')[0]
-        self.Kp = self.read('kP')[0]
-        self.Ki = self.read('kI')[0]
-        self.Kd = self.read('kD')[0]
-        self.PerrLimits = self.read('err_P_limits')
-        self.IerrLimits = self.read('err_I_limits')
+        # self.setpoint = self.read('setpoint')[0]
+        # self.Kp = self.read('kP')[0]
+        # self.Ki = self.read('kI')[0]
+        # self.Kd = self.read('kD')[0]
+        # self.PerrLimits = self.read('err_P_limits')
+        # self.IerrLimits = self.read('err_I_limits')
 
 
-    def restoreValues(self):
+    def restoreValues(self, snapshot):
+        for key, value in snapshot.items():
+            if key != 'date':
+                self.write(key, value)
+
         # TODO: return values and checks everewhere!
-        self.write('setpoint', self.setpoint)
-        self.write('kP', self.Kp)
-        self.write('kI', self.Ki)
-        self.write('kD', self.Kd)
-        self.write('err_P_limits', self.PerrLimits[0], self.PerrLimits[1])
-        self.write('err_I_limits', self.IerrLimits[0], self.IerrLimits[1])
+        # self.write('setpoint', self.setpoint)
+        # self.write('kP', self.Kp)
+        # self.write('kI', self.Ki)
+        # self.write('kD', self.Kd)
+        # self.write('err_P_limits', self.PerrLimits[0], self.PerrLimits[1])
+        # self.write('err_I_limits', self.IerrLimits[0], self.IerrLimits[1])
 
 
     def saveToEEPROM(self):
-        # TODO: check output
-        return self.read('save_to_eeprom')[0]
+        return self.read('save_to_eeprom')
 
 
     def checkConnection(self, timeout=CHECK_CONNECTION_TIMEOUT_DEFAULT):
@@ -457,17 +552,22 @@ class RemoteController:
 
 if __name__ == '__main__':
 
-    main_thread_pid = os.getpid()
-    print(main_thread_pid)
-    conn = RemoteController('127.0.0.1', 1200, thread_pid=main_thread_pid)
+    # TODO: test with server and client over LAN
 
-    conn.stream.start()
+    # conn = RemoteController('127.0.0.1', 1200)
+    #
+    # conn.stream.start()
+    #
+    # for i in range(10):
+    #     if conn.stream.pipe_rx.poll():
+    #         point = conn.stream.pipe_rx.recv()
+    #         print(point)
+    #     else:
+    #         time.sleep(0.5)
+    #
+    # conn.close()
 
-    for i in range(10):
-        if conn.stream.pipe_rx.poll():
-            point = conn.stream.pipe_rx.recv()
-            print(point)
-        else:
-            time.sleep(0.5)
-
-    conn.close()
+    try:
+        raise RemoteControllerException('read', 'kP', [-18.4, 19.7])
+    except RemoteControllerException as e:
+        print(e)

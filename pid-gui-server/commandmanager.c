@@ -74,14 +74,14 @@ void *_stream_thread(void *data) {
 }
 
 
-static void stream_start(void) {
+void stream_start(void) {
     if (!stream_run) {
         stream_run = true;
         stream_was_run = false;
     }
 }
 
-static void stream_stop(void) {
+void stream_stop(void) {
     if (stream_run) {
         stream_run = false;
         stream_was_run = true;
