@@ -221,9 +221,11 @@ class SettingsWindow(QWidget):
         if self.app.settings == self.settingsAtStart:  # MB HERE
             print("settings are same as at start")
             return
-        elif (self.app.settings == self.app.settings.defaults):
+        elif self.app.settings == self.app.settings.defaults:
             print("settings are same as default")
             self.resetSettings()
+            MessageWindow(text="Settings have been reset to their defaults. "
+                               "Please restart the application to take effects", type='Info')
             return
         else:
             self.app.settings.save(self.app.settings)  # MB HERE
@@ -241,6 +243,6 @@ class SettingsWindow(QWidget):
         self.app.settings.update(copy.deepcopy(self.app.settings.defaults))
         self.updateDisplayingValues()
         # self.app.settings.save(self.app.settings.defaults)
-        MessageWindow(text="Settings have been reset to their defaults. Please restart the application to take effects", type='Info')
+        # MessageWindow(text="Settings have been reset to their defaults. Please restart the application to take effects", type='Info')
         # self.wereReset = True
-        self.close()
+        # self.close()
