@@ -21,7 +21,6 @@ class Settings(dict):
             self.defaults = json.load(defaultSettingsJSONFile)
 
         self.persistentStorage = QSettings()
-        # self.persistentStorage.clear()
         self._retrieve()
 
 
@@ -66,22 +65,6 @@ class SettingsWindow(QWidget):
 
         self.setWindowTitle("Settings")
         self.setWindowIcon(QIcon('img/settings.png'))
-
-        # self.wereReset = False
-        # self.isFirstShow = True
-
-        # self.onlyUGraphRadioButton = QRadioButton("Plot only U(t) graph")
-        # self.onlyPIDGraphRadioButton = QRadioButton("Plot only PID-output(t) graph")
-        # self.bothGraphsRadioButton = QRadioButton("Plot both graphs concurrently")
-        # self.bothGraphsRadioButton.setChecked(True)
-
-        # chooseNumberOfGraphsVBox = QVBoxLayout()
-        # chooseNumberOfGraphsVBox.addWidget(self.onlyUGraphRadioButton)
-        # chooseNumberOfGraphsVBox.addWidget(self.onlyPIDGraphRadioButton)
-        # chooseNumberOfGraphsVBox.addWidget(self.bothGraphsRadioButton)
-        # chooseNumberOfGraphsGroupBox = QGroupBox("Graphs to plot:")
-        # chooseNumberOfGraphsGroupBox.setLayout(chooseNumberOfGraphsVBox)
-
 
         networkGroupBox = QGroupBox("Controller connection")
         networkVBox = QVBoxLayout()
@@ -185,13 +168,6 @@ class SettingsWindow(QWidget):
 
     def closeEvent(self, event):
         self.saveSettings()
-        # if not self.wereReset:
-        #     self.saveSettings()
-        # else:
-        #     if self.isFirstShow:
-        #         self.isFirstShow = False
-        #     else:
-        #         MessageWindow(text="Settings have been reset earlier, please restart the application first to edit them")
 
 
     def saveSettings(self):
@@ -203,12 +179,12 @@ class SettingsWindow(QWidget):
             self.app.settings['network']['ip'] = self.ipLineEdit.text()
         except ValueError:
             errors.append('IP address')
-        # self.app.settings['network']['ip'] = self.ipLineEdit.text()
+
         try:
             self.app.settings['network']['port'] = int(self.portLineEdit.text())
         except ValueError:
             errors.append('UDP port')
-        # self.app.settings['network']['port'] = int(self.portLineEdit.text())
+
         self.app.settings['network']['checkInterval'] = self.connCheckIntervalSpinBox.value()
         if self.themeLightRadioButton.isChecked():
             self.app.settings['appearance']['theme'] = 'light'
@@ -218,7 +194,7 @@ class SettingsWindow(QWidget):
         self.app.settings['graphs']['numberOfPoints'] = int(self.graphsNumberOfPointsSpinBox.value())
 
 
-        if self.app.settings == self.settingsAtStart:  # MB HERE
+        if self.app.settings == self.settingsAtStart:
             print("settings are same as at start")
             return
         elif self.app.settings == self.app.settings.defaults:
@@ -228,11 +204,10 @@ class SettingsWindow(QWidget):
                                "Please restart the application to take effects", type='Info')
             return
         else:
-            self.app.settings.save(self.app.settings)  # MB HERE
+            self.app.settings.save(self.app.settings)
             if errors:
                 MessageWindow(text="There were errors during these parameters saving:\n\n\t" + "\n\t".join(errors) +
-                                   "\n\nPlease check input data",
-                              type='Error')
+                                   "\n\nPlease check input data", type='Error')
             else:
                 MessageWindow(text="Parameters are successfully saved. Please restart the application to take effects",
                               type='Info')
@@ -244,5 +219,4 @@ class SettingsWindow(QWidget):
         self.updateDisplayingValues()
         # self.app.settings.save(self.app.settings.defaults)
         # MessageWindow(text="Settings have been reset to their defaults. Please restart the application to take effects", type='Info')
-        # self.wereReset = True
         # self.close()
