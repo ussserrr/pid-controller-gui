@@ -736,11 +736,11 @@ class SettingsWindow(QWidget):
 
 
     def restore(self):
-        tivaConn.restoreValues()
+        tivaConn.restore_values()
         refreshAllPIDvalues()
 
     def saveToEEPROM(self):
-        if not tivaConn.saveToEEPROM():
+        if not tivaConn.save_to_eeprom():
             MessageWindow(text='Successfully saved', type='Info')
             refreshAllPIDvalues()
         else:
@@ -840,7 +840,7 @@ class ErrorsSettingsWindow(QWidget):
 
 
     def resetIerr(self):
-        tivaConn.resetIerr()
+        tivaConn.reset_i_err()
         MessageWindow(text='Success. Current I-error: {}'.format(tivaConn.read('Ierr')[0]), type='Info')
 
 
@@ -1256,11 +1256,11 @@ class MainWindow(QMainWindow):
 
 
 def checkConnectionTimerHandler():
-    if tivaConn.checkConnection():
+    if tivaConn.check_connection():
         connLostHandler()
     else:
-        if tivaConn.isOfflineMode:
-            tivaConn.isOfflineMode = False
+        if tivaConn.is_offline_mode:
+            tivaConn.is_offline_mode = False
             refreshAllPIDvalues()
             mainWindow.statusBar().removeWidget(connLostStatusBarLabel)
             mainWindow.statusBar().showMessage('Reconnected')
@@ -1268,8 +1268,8 @@ def checkConnectionTimerHandler():
 
 # handler function for connLost slot
 def connLostHandler():
-    if not tivaConn.isOfflineMode:
-        tivaConn.isOfflineMode = True
+    if not tivaConn.is_offline_mode:
+        tivaConn.is_offline_mode = True
         mainWindow.statusBar().addWidget(connLostStatusBarLabel)
         MessageWindow(text='Connection was lost. App going to Offline mode and will be trying to reconnect', type='Warning')
 
@@ -1337,8 +1337,8 @@ if __name__ == '__main__':
     # widget for showing in statusbar when connection lost
     connLostStatusBarLabel = QLabel("<font color='red'>Connection was lost. Trying to reconnect...</font>")
     DEMO_MODE = False
-    if tivaConn.checkConnection():
-        tivaConn.isOfflineMode = True
+    if tivaConn.check_connection():
+        tivaConn.is_offline_mode = True
         DEMO_MODE = True
         print("\nDemo mode entered")
         MessageWindow(text="Due to no connection to regulator the application will start in Demo mode. All values are random. "\
@@ -1349,9 +1349,9 @@ if __name__ == '__main__':
         checkConnectionTimer.timeout.connect(checkConnectionTimerHandler)
         checkConnectionTimer.start(5000)  # every 5 seconds
         # also create handler function for connection lost (for example, when reading some coefficient from MCU)
-        tivaConn.connLost.signal.connect(connLostHandler)
+        tivaConn.conn_lost.signal.connect(connLostHandler)
     # save values for restoring
-    tivaConn.saveCurrentValues()
+    tivaConn.save_current_values()
 
     mainWindow = MainWindow()
     mainWindow.show()

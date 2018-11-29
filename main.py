@@ -463,12 +463,12 @@ class MainWindow(QMainWindow):
 
 
     def restoreContValues(self):
-        self.app.conn.restoreValues(self.app.conn.snapshots[0])
+        self.app.conn.restore_values(self.app.conn.snapshots[0])
         self.centralWidget.refreshAllPIDvalues()
 
 
     def saveToEEPROM(self):
-        if self.app.conn.saveToEEPROM() == remotecontroller.result['ok']:
+        if self.app.conn.save_to_eeprom() == remotecontroller.result['ok']:
             MessageWindow(text='Successfully saved', type='Info')
             self.app.mainWindow.centralWidget.refreshAllPIDvalues()
         else:
@@ -520,7 +520,7 @@ class MainApplication(QApplication):
 
         self.isOfflineMode = False
         self.conn = remotecontroller.RemoteController(self.settings['network']['ip'], self.settings['network']['port'])
-        if self.conn.isOfflineMode:
+        if self.conn.is_offline_mode:
             self.isOfflineMode = True
             print("offline mode")
             MessageWindow(text="No connection to the remote controller. App goes to the Offline (demo) mode. "
@@ -531,9 +531,9 @@ class MainApplication(QApplication):
             self.connCheckTimer.timeout.connect(self.connCheckTimerHandler)
             # self.connCheckTimer.start(self.settings['network']['checkInterval'])  # every 5 seconds
             # also create handler function for connection lost (for example, when reading some coefficient from MCU)
-            self.conn.connLost.signal.connect(self.connLostHandler)
+            self.conn.conn_lost.signal.connect(self.connLostHandler)
 
-        self.conn.saveCurrentValues()
+        self.conn.save_current_values()
 
         self.mainWindow = MainWindow(self)
         self.mainWindow.show()
@@ -547,7 +547,7 @@ class MainApplication(QApplication):
 
     def connCheckTimerHandler(self):
         print("check connection")
-        if self.conn.checkConnection() != 0:
+        if self.conn.check_connection() != 0:
             self.connLostHandler()
         else:
             if self.isOfflineMode:
@@ -561,6 +561,7 @@ class MainApplication(QApplication):
     # handler function for the connLost slot
     @pyqtSlot()
     def connLostHandler(self):
+        # TODO: exception: MainApplication has no attribute mainWindow
         if not self.isOfflineMode:
             self.isOfflineMode = True
             print('lost connection')

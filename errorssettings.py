@@ -125,7 +125,7 @@ class ErrorsSettingsWindow(QWidget):
 
 
     def resetIerr(self):
-        if self.app.conn.resetIerr() == remotecontroller.result['ok']:
+        if self.app.conn.reset_i_err() == remotecontroller.result['ok']:
             statusLabel = QLabel("Ierr has been reset")
         else:
             statusLabel = QLabel("<font color='red'>Ierr reset error</font>")

@@ -8,6 +8,11 @@ import numpy as np
 
 import pyqtgraph
 
+import remotecontroller
+
+
+STREAM_PIPE_OVERFLOW_NUM_POINTS_THRESHOLD = 50
+
 
 
 class PicButton(QAbstractButton):
@@ -249,11 +254,11 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
 
     def overflowCheck(self):
-        self.control_pipe.send('get')
+        self.control_pipe.send(remotecontroller.InputThreadCommand.MSG_CNT_GET)
         if self.control_pipe.poll(timeout=0.1):
             input_thread_points_cnt = self.control_pipe.recv()
             print(f'sock: {input_thread_points_cnt}, plot: {self.points_cnt}')
-            if input_thread_points_cnt - self.points_cnt >= input_thread_points_cnt * 0.05:
+            if input_thread_points_cnt - self.points_cnt > STREAM_PIPE_OVERFLOW_NUM_POINTS_THRESHOLD:
                 print('overflow!')  # TODO: maybe notify the main, maybe use the signal
                 # 1. stop incoming stream
                 # 2. flush self.pipe (maybe plot this points, maybe drop them)
@@ -270,7 +275,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
         if self.stream_pipe_rx is not None:
             self.overflowCheckTimer.start(10000)
-            self.control_pipe.send('run')
+            self.control_pipe.send(remotecontroller.InputThreadCommand.STREAM_ACCEPT)
 
         self.isRun = True
 
@@ -280,7 +285,8 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
         if self.stream_pipe_rx is not None:
             self.overflowCheckTimer.stop()
-            self.control_pipe.send('rst')
+            self.control_pipe.send(remotecontroller.InputThreadCommand.STREAM_REJECT)
+            self.control_pipe.send(remotecontroller.InputThreadCommand.MSG_CNT_RST)
             while True:
                 if self.stream_pipe_rx.poll():
                     self.stream_pipe_rx.recv()
