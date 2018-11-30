@@ -290,7 +290,7 @@ from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGr
     QApplication, QSpinBox, QStatusBar, QProgressBar, QLineEdit, QCheckBox, QGridLayout, \
     QTabWidget, QMainWindow, QToolTip, QAction, QLayout, QSizePolicy, QButtonGroup
 from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtCore import QTimer, QCoreApplication, QSettings, Qt, QT_VERSION_STR, pyqtSlot
+from PyQt5.QtCore import QTimer, QCoreApplication, QSettings, Qt, QT_VERSION_STR, pyqtSlot, pyqtSignal
 from PyQt5.Qt import PYQT_VERSION_STR
 import qdarkstyle
 
@@ -322,13 +322,12 @@ class CentralWidget(QWidget):
 
         self.graphs = CustomGraphicsLayoutWidget(
             nPoints=app.settings['graphs']['numberOfPoints'],
+            interval=app.settings['graphs']['updateInterval'],
             procVarRange=(-2.0, 2.0),  # TODO: store as variables or make settings for these
             contOutRange=(-2.0, 2.0),
-            interval=app.settings['graphs']['updateInterval'],
-            control_pipe=self.app.conn.input_thread_control_pipe_main,
-            stream_pipe_rx=None if self.app.isOfflineMode else self.app.conn.stream.pipe_rx,
+            controlPipe=None if self.app.isOfflineMode else self.app.conn.input_thread_control_pipe_main,
+            streamPipeRX=None if self.app.isOfflineMode else self.app.conn.stream.pipe_rx,
             theme=app.settings['appearance']['theme'],
-            start=False
         )
 
         # self.calcAvrgUCheckBox = QCheckBox("Aver. U")
@@ -459,7 +458,7 @@ class MainWindow(QMainWindow):
         else:
             self.playpauseButton.setChecked(False)
         self.app.conn.stream.toggle()
-        self.centralWidget.graphs.toggle_live_graphs()
+        self.centralWidget.graphs.toggle()
 
 
     def restoreContValues(self):
@@ -508,6 +507,8 @@ class MainApplication(QApplication):
     # TODO: apply settings on-the-fly (not requiring a reboot)
     # TODO: add more ToolTips and StatusTips for elements
 
+    connLostSignal = pyqtSignal()
+
     def __init__(self, argv):
         super(MainApplication, self).__init__(argv)
 
@@ -516,10 +517,15 @@ class MainApplication(QApplication):
         if self.settings['appearance']['theme'] == 'dark':
             self.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
 
+        # self.connLostSignal = pyqtSignal()
         self.connLostStatusBarLabel = QLabel("<font color='red'>Connection was lost. Trying to reconnect...</font>")
 
         self.isOfflineMode = False
-        self.conn = remotecontroller.RemoteController(self.settings['network']['ip'], self.settings['network']['port'])
+        self.conn = remotecontroller.RemoteController(
+            self.settings['network']['ip'],
+            self.settings['network']['port'],
+            conn_lost_signal=self.connLostSignal
+        )
         if self.conn.is_offline_mode:
             self.isOfflineMode = True
             print("offline mode")
@@ -531,7 +537,7 @@ class MainApplication(QApplication):
             self.connCheckTimer.timeout.connect(self.connCheckTimerHandler)
             # self.connCheckTimer.start(self.settings['network']['checkInterval'])  # every 5 seconds
             # also create handler function for connection lost (for example, when reading some coefficient from MCU)
-            self.conn.conn_lost.signal.connect(self.connLostHandler)
+            self.connLostSignal.connect(self.connLostHandler)
 
         self.conn.save_current_values()
 
@@ -541,7 +547,7 @@ class MainApplication(QApplication):
 
     def quit(self):
         self.conn.close()
-        print(f"pipe: {self.mainWindow.centralWidget.graphs.points_cnt}")
+        # print(f"pipe: {self.mainWindow.centralWidget.graphs.points_cnt}")
         super(MainApplication, self).quit()
 
 

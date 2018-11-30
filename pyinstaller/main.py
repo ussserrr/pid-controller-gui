@@ -1349,7 +1349,7 @@ if __name__ == '__main__':
         checkConnectionTimer.timeout.connect(checkConnectionTimerHandler)
         checkConnectionTimer.start(5000)  # every 5 seconds
         # also create handler function for connection lost (for example, when reading some coefficient from MCU)
-        tivaConn.conn_lost.signal.connect(connLostHandler)
+        tivaConn.conn_lost_signal.signal.connect(connLostHandler)
     # save values for restoring
     tivaConn.save_current_values()
 
