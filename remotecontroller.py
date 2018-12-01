@@ -372,11 +372,13 @@ class RemoteController:
 
         :param ip_addr: string representing IP-address of the controller' network interface
         :param udp_port: integer representing UDP port of the controller' network interface
+        :param conn_lost_signal: [optional] PyQt signal to emit when the connection is lost during the read/write
+        operations. Otherwise the disconnect could only be revealed by an explicit call to check_connection() method
         """
 
         self.snapshots = []  # currently only one snapshot is created and used
 
-        self.is_offline_mode = False
+        self._is_offline_mode = False
         self.cont_ip_port = (ip_addr, udp_port)
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # TODO: wrap sock on OSError everywhere
@@ -408,10 +410,16 @@ class RemoteController:
 
         # use recently started thread to check an actual connection and if it is not present close all the related stuff
         if self.check_connection(timeout=CHECK_CONNECTION_TIMEOUT_FIRST_CHECK) != 0:
-            self.is_offline_mode = True
+            self._is_offline_mode = True
             self.close()
 
         self.stream.stop()  # explicitly stop the stream in case it somehow was active
+
+
+    @property
+    def is_offline_mode(self):
+        """getter of the read-only property"""
+        return self._is_offline_mode
 
 
     @staticmethod
@@ -493,7 +501,7 @@ class RemoteController:
         :return: result['error'] or result['ok'] (int)
         """
 
-        if not self.is_offline_mode:
+        if not self._is_offline_mode:
 
             request = self._make_request('read', what)
 
@@ -520,7 +528,7 @@ class RemoteController:
         :return: result['error'] or result['ok'] (int)
         """
 
-        if not self.is_offline_mode:
+        if not self._is_offline_mode:
 
             request = self._make_request('write', what, *values)
 
@@ -598,20 +606,19 @@ class RemoteController:
 
         request = _make_request('read', 'setpoint')  # use setpoint as a test request
 
-        # if not self.is_offline_mode:
         try:
             self.sock.sendto(request, self.cont_ip_port)
         except OSError:  # probably PC has no network
-            self.is_offline_mode = True
+            self._is_offline_mode = True
             return result['error']
 
         if self.var_cmd_pipe_rx.poll(timeout=timeout):
             self.var_cmd_pipe_rx.recv()  # receive the message to keep the pipe clean
         else:
-            self.is_offline_mode = True
+            self._is_offline_mode = True
             return result['error']
 
-        self.is_offline_mode = False
+        self._is_offline_mode = False
         return result['ok']
 
 
@@ -622,7 +629,7 @@ class RemoteController:
         :return: None
         """
 
-        if not self.is_offline_mode:
+        if not self._is_offline_mode:
             self.input_thread_control_pipe_main.send(InputThreadCommand.INPUT_REJECT)
 
 
@@ -633,7 +640,7 @@ class RemoteController:
         :return: None
         """
 
-        if not self.is_offline_mode:
+        if not self._is_offline_mode:
             self.input_thread_control_pipe_main.send(InputThreadCommand.INPUT_ACCEPT)
 
 

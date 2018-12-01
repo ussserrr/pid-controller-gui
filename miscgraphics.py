@@ -12,8 +12,10 @@ import pyqtgraph
 import remotecontroller
 
 
+
 STREAM_PIPE_OVERFLOW_NUM_POINTS_THRESHOLD = 50
 STREAM_PIPE_OVERFLOW_CHECK_TIME_PERIOD_MS = 10000
+STREAM_PIPE_OVERFLOW_WARNING_SIGN_DURATION = 5000
 
 
 
@@ -37,6 +39,15 @@ class PicButton(QAbstractButton):
     """
 
     def __init__(self, img_normal: str, img_hover: str, img_pressed: str, parent=None):
+        """
+
+
+        :param img_normal: path to
+        :param img_hover:
+        :param img_pressed:
+        :param parent:
+        """
+
         super(PicButton, self).__init__(parent)
 
         self.pixmap = QPixmap(img_normal)
@@ -112,18 +123,26 @@ class ValueGroupBox(QGroupBox):
 
     """
 
-    def __init__(self, label, conn, parent=None):
+    def __init__(self, label: str, controller: remotecontroller.RemoteController, parent=None):
+        """
+
+
+        :param label: name of GroupBox
+        :param controller: RemoteController instance to connect to
+        :param parent: parent class
+        """
 
         super(ValueGroupBox, self).__init__(parent)
 
         self.setTitle(f"{label.capitalize()} control")
 
         self.label = label
-        self.conn = conn
+        self.controller = controller
 
         self.valLabelTemplate = string.Template("Current $label: <b>{:.3f}</b>").safe_substitute(label=label)
         self.valLabel = QLabel()
         self.refreshVal()
+
         refreshButton = PicButton("img/refresh.png", "img/refresh_hover.png", "img/refresh_pressed.png")
         refreshButton.clicked.connect(self.refreshVal)
         refreshButton.setIcon(QIcon("img/refresh.png"))
@@ -149,13 +168,25 @@ class ValueGroupBox(QGroupBox):
 
 
     def refreshVal(self):
-        self.valLabel.setText(self.valLabelTemplate.format(self.conn.read(self.label)))
+        """
+
+
+        :return: None
+        """
+
+        self.valLabel.setText(self.valLabelTemplate.format(self.controller.read(self.label)))
 
 
     def writeButtonClicked(self):
+        """
+
+
+        :return: None
+        """
+
         try:
-            self.conn.write(self.label, float(self.writeLine.text()))
-        except ValueError:
+            self.controller.write(self.label, float(self.writeLine.text()))
+        except ValueError:  # user enters not valid number or NaN
             pass
         self.writeLine.clear()
         self.refreshVal()
@@ -227,20 +258,29 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         }
         self.interval = interval
 
+        self.procVarRange = procVarRange
+        self.contOutRange = contOutRange
+
         # axis is "starting" at the right border (current time) and goes to the past to the left (negative time)
         self.timeAxes = np.linspace(-nPoints*interval, 0, nPoints)
 
-        self.controlPipe = controlPipe
-        self.overflowCheckTimer = QTimer()
-        self.overflowCheckTimer.timeout.connect(self.overflowCheck)
+        if controlPipe is not None and streamPipeRX is not None:
+            self._isOfflineMode = False
 
-        self.streamPipeRX = streamPipeRX
+            self.controlPipe = controlPipe
+
+            self.overflowCheckTimer = QTimer()
+            self.overflowCheckTimer.timeout.connect(self._overflowCheck)
+
+            self.streamPipeRX = streamPipeRX
+        else:
+            self._isOfflineMode = True
+
         self._isRun = False
 
         # process variable graph
         self.procVarGraph = self.addPlot(y=np.zeros([self.nPoints]),
-                                         labels={'right': "Process Variable"},
-                                         pen=pyqtgraph.mkPen(color='r'))
+                                         labels={'right': "Process Variable"}, pen='r')
         self.procVarGraph.setRange(yRange=procVarRange)
         self.procVarGraph.hideButtons()
         self.procVarGraph.hideAxis('left')
@@ -250,8 +290,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
         # controller output graph
         self.contOutGraph = self.addPlot(y=np.zeros([self.nPoints]),
-                                         labels={'right': "Controller Output", 'bottom': "Time, ms"},
-                                         pen=pyqtgraph.mkPen(color='r'))
+                                         labels={'right': "Controller Output", 'bottom': "Time, ms"}, pen='r')
         self.contOutGraph.setRange(yRange=contOutRange)
         self.contOutGraph.hideButtons()
         self.contOutGraph.hideAxis('left')
@@ -269,58 +308,104 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
         self.pointsCnt = 0
 
+        self._warningSign = None
+        self.warningSignRemoveTimer = QTimer()
+        self.warningSignRemoveTimer.setSingleShot(True)
+        self.warningSignRemoveTimer.setInterval(STREAM_PIPE_OVERFLOW_WARNING_SIGN_DURATION)
+        self.warningSignRemoveTimer.timeout.connect(self._removeWarningSign)
+
 
     @property
-    def isRun(self):
+    def isRun(self) -> bool:
         """bool property getter"""
         return self._isRun
 
 
-    def overflowCheck(self):
+    def _addWarningSign(self):
+        self._warningSign = self.procVarGraph.plot(y=[self.procVarRange[1]*0.75], x=[-self.nPoints*self.interval*0.95],
+                                                   symbol='o', symbolSize=24, symbolPen='r', symbolBrush='r')
+
+    def _removeWarningSign(self):
+        self.procVarGraph.removeItem(self._warningSign)
+
+
+    def _overflowCheck(self):
+        """
+        Procedure to check the stream pipe overflow. When a rate of incoming stream socket packets is faster than an
+        update time period of this graphs (i.e. pipe' readings) an internal buffer of the pipe entity will grow. We
+        responsible for the detection of such situations because quite soon after this the entire connection tends to
+        be an unresponsive
+
+        :return: None
+        """
+
+        # request to read a points (messages) counter
         self.controlPipe.send(remotecontroller.InputThreadCommand.MSG_CNT_GET)
-        if self.controlPipe.poll(timeout=0.1):
-            input_thread_points_cnt = self.controlPipe.recv()
+        if self.controlPipe.poll(timeout=0.1):  # wait for it ...
+            input_thread_points_cnt = self.controlPipe.recv()  # ... and read it
+
             print(f'sock: {input_thread_points_cnt}, plot: {self.pointsCnt}')
+
+            # compare the local points counter with gotten one (overflow condition)
             if input_thread_points_cnt - self.pointsCnt > STREAM_PIPE_OVERFLOW_NUM_POINTS_THRESHOLD:
-                print('overflow!')  # TODO: maybe notify the main, maybe use the signal
-                # 1. stop incoming stream
-                # 2. flush self.pipe (maybe plot this points, maybe drop them)
-                # 3. restart the stream
-                self.stop()
-                self.start()
+                self.stop()  # stop incoming stream and flush the pipe
+                self._addWarningSign()  # notify a user
+                self.warningSignRemoveTimer.start()
+                self.start()  # restart the stream
 
 
     def start(self):
+        """
+        Prepare and start a live plotting
+
+        :return: None
+        """
+
         # reset data cause it has changed during the pause time
         self.procVarGraph.curves[0].setData(self.timeAxes, np.zeros([self.nPoints]))
         self.contOutGraph.curves[0].setData(self.timeAxes, np.zeros([self.nPoints]))
+
         self.updateTimer.start(self.interval)
 
-        if self.streamPipeRX is not None:
+        if not self._isOfflineMode:
             self.overflowCheckTimer.start(STREAM_PIPE_OVERFLOW_CHECK_TIME_PERIOD_MS)
-            self.controlPipe.send(remotecontroller.InputThreadCommand.STREAM_ACCEPT)
+            self.controlPipe.send(remotecontroller.InputThreadCommand.STREAM_ACCEPT)  # send command to allow stream
 
         self._isRun = True
 
 
     def stop(self):
+        """
+        Stop a live plotting and do finish routines
+
+        :return: None
+        """
+
         self.updateTimer.stop()
 
-        if self.streamPipeRX is not None:
+        if not self._isOfflineMode:
             self.overflowCheckTimer.stop()
             self.controlPipe.send(remotecontroller.InputThreadCommand.STREAM_REJECT)
-            self.controlPipe.send(remotecontroller.InputThreadCommand.MSG_CNT_RST)
+            self.controlPipe.send(remotecontroller.InputThreadCommand.MSG_CNT_RST)  # reset remote counter
+
+            # flush the stream pipe
             while True:
                 if self.streamPipeRX.poll():
                     self.streamPipeRX.recv()
                 else:
                     break
 
-        self.pointsCnt = 0
+        self.pointsCnt = 0  # reset local counter
         self._isRun = False
 
 
     def toggle(self):
+        """
+        Toggle live plotting
+
+        :return: None
+        """
+
         if self._isRun:
             self.stop()
         else:
@@ -328,7 +413,14 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
 
     def _update(self):
-        if self.streamPipeRX is None:
+        """
+        Routine to get a new data and plot it (i.e. redraw graphs)
+
+        :return: None
+        """
+
+        # use fake (random) numbers in offline mode
+        if self._isOfflineMode:
             self.lastPoint['pv'] = -0.5 + np.random.rand()
             self.lastPoint['co'] = -0.5 + np.random.rand()
             self.pointsCnt += 1
@@ -339,13 +431,10 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
                     self.lastPoint['pv'] = point[0]
                     self.lastPoint['co'] = point[1]
                     self.pointsCnt += 1
-            except OSError:
-                print("OSError")
+            except OSError:  # may occur during an exit mess
                 pass
 
-        self.procVarAverLabel.setValue(self.lastPoint['pv'])
-        self.contOutAverLabel.setValue(self.lastPoint['co'])
-
+        # shift points array on 1 position to free up the place for a new point
         procVarData = np.roll(self.procVarGraph.curves[0].getData()[1], -1)
         procVarData[-1] = self.lastPoint['pv']
         contOutData = np.roll(self.contOutGraph.curves[0].getData()[1], -1)
@@ -353,6 +442,10 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
         self.procVarGraph.curves[0].setData(self.timeAxes, procVarData)
         self.contOutGraph.curves[0].setData(self.timeAxes, contOutData)
+
+        # add the same point to the averaging label
+        self.procVarAverLabel.setValue(self.lastPoint['pv'])
+        self.contOutAverLabel.setValue(self.lastPoint['co'])
 
 
 
@@ -378,8 +471,10 @@ if __name__ == '__main__':
     )
     graphs.start()
 
-    layout = QHBoxLayout(window)
+    layout = QVBoxLayout(window)
     layout.addWidget(graphs)
+    layout.addWidget(graphs.procVarAverLabel)
+    layout.addWidget(graphs.contOutAverLabel)
 
     window.show()
     sys.exit(app.exec_())
