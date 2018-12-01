@@ -6,7 +6,8 @@ from PyQt5.QtCore import QSettings
 from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGridLayout, QGroupBox, QLabel, QPushButton, QLineEdit, QSpinBox, QButtonGroup
 from PyQt5.QtGui import QIcon, QIntValidator
 
-from miscgraphics import MessageWindow
+# local imports
+import miscgraphics
 
 
 
@@ -200,17 +201,17 @@ class SettingsWindow(QWidget):
         elif self.app.settings == self.app.settings.defaults:
             print("settings are same as default")
             self.resetSettings()
-            MessageWindow(text="Settings have been reset to their defaults. "
-                               "Please restart the application to take effects", type='Info')
+            miscgraphics.MessageWindow("Settings have been reset to their defaults. "
+                               "Please restart the application to take effects", status='Info')
             return
         else:
             self.app.settings.save(self.app.settings)
             if errors:
-                MessageWindow(text="There were errors during these parameters saving:\n\n\t" + "\n\t".join(errors) +
-                                   "\n\nPlease check input data", type='Error')
+                miscgraphics.MessageWindow("There were errors during these parameters saving:\n\n\t" + "\n\t".join(errors) +
+                                   "\n\nPlease check input data", status='Error')
             else:
-                MessageWindow(text="Parameters are successfully saved. Please restart the application to take effects",
-                              type='Info')
+                miscgraphics.MessageWindow("Parameters are successfully saved. Please restart the application to take effects",
+                              status='Info')
 
 
     def resetSettings(self):

@@ -7,7 +7,17 @@ aboutInfo = "la"
 
 
 class AboutWindow(QTabWidget):
+    """
+
+    """
+
     def __init__(self, app, parent=None):
+        """
+
+        :param app:
+        :param parent:
+        """
+
         super(AboutWindow, self).__init__(parent)
 
         self.app = app

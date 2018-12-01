@@ -284,7 +284,6 @@ if __name__ == '__main__':
     sys.exit(app.exec_())
 =======
 import sys
-import os
 
 from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGroupBox, QLabel, QPushButton, \
     QApplication, QSpinBox, QStatusBar, QProgressBar, QLineEdit, QCheckBox, QGridLayout, \
@@ -292,12 +291,15 @@ from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGr
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import QTimer, QCoreApplication, QSettings, Qt, QT_VERSION_STR, pyqtSlot, pyqtSignal
 from PyQt5.Qt import PYQT_VERSION_STR
+
 import qdarkstyle
 
+# local imports
 import remotecontroller
-from miscgraphics import MessageWindow, ValueGroupBox, CustomGraphicsLayoutWidget
-from settings import Settings, SettingsWindow
-from errorssettings import ErrorsSettingsWindow
+import miscgraphics
+import graphs
+import settings
+import errorssettings
 from about import AboutWindow
 
 # TODO: rename all 'procVar_' and 'contOut_' to 'pv_', 'co_'. Maybe use _docstring_ for entire module to declare the glossary
@@ -312,15 +314,15 @@ class CentralWidget(QWidget):
         self.app = app
 
         self.contValGroupBoxes = {
-            'setpoint': ValueGroupBox('setpoint', app.conn),
-            'kP': ValueGroupBox('kP', app.conn),
-            'kI': ValueGroupBox('kI', app.conn),
-            'kD': ValueGroupBox('kD', app.conn)
+            'setpoint': miscgraphics.ValueGroupBox('setpoint', app.conn),
+            'kP': miscgraphics.ValueGroupBox('kP', app.conn),
+            'kI': miscgraphics.ValueGroupBox('kI', app.conn),
+            'kD': miscgraphics.ValueGroupBox('kD', app.conn)
         }
 
-        self.errorsSettingsWindow = ErrorsSettingsWindow(app)
+        self.errorsSettingsWindow = errorssettings.ErrorsSettingsWindow(app)
 
-        self.graphs = CustomGraphicsLayoutWidget(
+        self.graphs = graphs.CustomGraphicsLayoutWidget(
             nPoints=app.settings['graphs']['numberOfPoints'],
             interval=app.settings['graphs']['updateInterval'],
             procVarRange=(-2.0, 2.0),  # TODO: store as variables or make settings for these
@@ -399,7 +401,7 @@ class MainWindow(QMainWindow):
         settingsAction = QAction(QIcon('img/settings.png'), 'Settings', self)
         settingsAction.setShortcut('Ctrl+P')
         settingsAction.setStatusTip('[Ctrl+P] Application Settings')
-        self.settingsWindow = SettingsWindow(app)
+        self.settingsWindow = settings.SettingsWindow(app)
         settingsAction.triggered.connect(self.settingsWindow.show)
 
         appToolbar = self.addToolBar('app')
@@ -468,10 +470,10 @@ class MainWindow(QMainWindow):
 
     def saveToEEPROM(self):
         if self.app.conn.save_to_eeprom() == remotecontroller.result['ok']:
-            MessageWindow(text='Successfully saved', type='Info')
+            miscgraphics.MessageWindow('Successfully saved', status='Info')
             self.app.mainWindow.centralWidget.refreshAllPIDvalues()
         else:
-            MessageWindow(text='Saving failed!', type='Error')
+            miscgraphics.MessageWindow('Saving failed!', status='Error')
 
 
     def hideEvent(self, *args, **kwargs):
@@ -512,7 +514,7 @@ class MainApplication(QApplication):
     def __init__(self, argv):
         super(MainApplication, self).__init__(argv)
 
-        self.settings = Settings(defaults='defaultSettings.json')
+        self.settings = settings.Settings(defaults='defaultSettings.json')
 
         if self.settings['appearance']['theme'] == 'dark':
             self.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
@@ -529,8 +531,8 @@ class MainApplication(QApplication):
         if self.conn.is_offline_mode:
             self.isOfflineMode = True
             print("offline mode")
-            MessageWindow(text="No connection to the remote controller. App goes to the Offline (demo) mode. "
-                               "All values are random. To try to reconnect please restart the app", type='Warning')
+            miscgraphics.MessageWindow("No connection to the remote controller. App goes to the Offline (demo) mode. "
+                               "All values are random. To try to reconnect please restart the app", status='Warning')
         else:
             # if connection is present and no demo mode then create timer for connection checking
             self.connCheckTimer = QTimer()
@@ -574,8 +576,8 @@ class MainApplication(QApplication):
             if self.mainWindow.centralWidget.graphs.isRun:
                 self.mainWindow.playpauseGraphs()
             self.mainWindow.statusBar().addWidget(self.connLostStatusBarLabel)
-            MessageWindow(text="Connection was lost. The app goes to the Offline mode and will be trying to reconnect",
-                          type='Warning')
+            miscgraphics.MessageWindow("Connection was lost. The app goes to the Offline mode and will be trying to reconnect",
+                                       status='Warning')
 
 
 

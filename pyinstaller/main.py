@@ -741,10 +741,10 @@ class SettingsWindow(QWidget):
 
     def saveToEEPROM(self):
         if not tivaConn.save_to_eeprom():
-            MessageWindow(text='Successfully saved', type='Info')
+            MessageWindow(text='Successfully saved', status='Info')
             refreshAllPIDvalues()
         else:
-            MessageWindow(text='Saving failed!', type='Warning')
+            MessageWindow(text='Saving failed!', status='Warning')
 
 
 
@@ -816,7 +816,7 @@ class ErrorsSettingsWindow(QWidget):
     def setPerrLimits(self):
         try:
             if float(self.PerrMaxLineEdit.text())<float(self.PerrMinLineEdit.text()):
-                MessageWindow(text="Upper limit value is less than lower", type='Error')
+                MessageWindow(text="Upper limit value is less than lower", status='Error')
             else:
                 tivaConn.write('PerrLimits', float(self.PerrMinLineEdit.text()), float(self.PerrMaxLineEdit.text()))
         except ValueError:
@@ -829,7 +829,7 @@ class ErrorsSettingsWindow(QWidget):
     def setIerrLimits(self):
         try:
             if float(self.IerrMaxLineEdit.text())<float(self.IerrMinLineEdit.text()):
-                MessageWindow(text="Upper limit value is less than lower", type='Error')
+                MessageWindow(text="Upper limit value is less than lower", status='Error')
             else:
                 tivaConn.write('IerrLimits', float(self.IerrMinLineEdit.text()), float(self.IerrMaxLineEdit.text()))
         except ValueError:
@@ -841,7 +841,7 @@ class ErrorsSettingsWindow(QWidget):
 
     def resetIerr(self):
         tivaConn.reset_i_err()
-        MessageWindow(text='Success. Current I-error: {}'.format(tivaConn.read('Ierr')[0]), type='Info')
+        MessageWindow(text='Success. Current I-error: {}'.format(tivaConn.read('Ierr')[0]), status='Info')
 
 
 
@@ -1101,7 +1101,7 @@ class MainWindow(QMainWindow):
                 if float(self.setpointWriteLine.text()) <= 3.3 and float(self.setpointWriteLine.text()) >= 0:
                     tivaConn.write('setpoint', float(self.setpointWriteLine.text()))
                 else:
-                    MessageWindow(text="Setpoint value must be in interval [0; 3.3] Volts!", type="Warning")
+                    MessageWindow(text="Setpoint value must be in interval [0; 3.3] Volts!", status="Warning")
             except ValueError:
                 pass
             self.setpointWriteLine.clear()
@@ -1271,7 +1271,7 @@ def connLostHandler():
     if not tivaConn.is_offline_mode:
         tivaConn.is_offline_mode = True
         mainWindow.statusBar().addWidget(connLostStatusBarLabel)
-        MessageWindow(text='Connection was lost. App going to Offline mode and will be trying to reconnect', type='Warning')
+        MessageWindow(text='Connection was lost. App going to Offline mode and will be trying to reconnect', status='Warning')
 
 
 def refreshAllPIDvalues():

@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QWidget, QGroupBox, QGridLayout, QHBoxLayout, QVBoxL
 from PyQt5.QtGui import QIcon, QDoubleValidator
 from PyQt5.QtCore import QTimer
 
+# local imports
 import remotecontroller
 
 
