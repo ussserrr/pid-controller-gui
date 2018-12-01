@@ -306,6 +306,7 @@ from about import AboutWindow
 
 
 
+
 class CentralWidget(QWidget):
 
     def __init__(self, app, parent=None):
@@ -314,10 +315,10 @@ class CentralWidget(QWidget):
         self.app = app
 
         self.contValGroupBoxes = {
-            'setpoint': miscgraphics.ValueGroupBox('setpoint', app.conn),
-            'kP': miscgraphics.ValueGroupBox('kP', app.conn),
-            'kI': miscgraphics.ValueGroupBox('kI', app.conn),
-            'kD': miscgraphics.ValueGroupBox('kD', app.conn)
+            'setpoint': miscgraphics.ValueGroupBox('setpoint', controller=app.conn),
+            'kP': miscgraphics.ValueGroupBox('kP', controller=app.conn),
+            'kI': miscgraphics.ValueGroupBox('kI', controller=app.conn),
+            'kD': miscgraphics.ValueGroupBox('kD', controller=app.conn)
         }
 
         self.errorsSettingsWindow = errorssettings.ErrorsSettingsWindow(app)
@@ -373,10 +374,19 @@ class CentralWidget(QWidget):
 
 
 
-# TODO: maybe replace MessageWindows with StatusBar' messages
 class MainWindow(QMainWindow):
+    """
+    MainWindow contains of toolbar, status bar, menu. All other items are placed on a CentralWidget
+    """
 
     def __init__(self, app, parent=None):
+        """
+        MainWindow constructor
+
+        :param app: parent application
+        :param parent: [optional] parent class
+        """
+
         super(MainWindow, self).__init__(parent)
 
         self.app = app
@@ -384,9 +394,13 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("PID controller GUI")
         self.setWindowIcon(QIcon('img/icon.png'))
 
-        self.centralWidget = CentralWidget(app)
+
+        self.centralWidget = CentralWidget(app=app)
         self.setCentralWidget(self.centralWidget)
 
+        #
+        # App Toolbar section
+        #
         exitAction = QAction(QIcon('img/exit.png'), 'Exit', self)
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('[Ctrl+Q] Exit application')
@@ -410,6 +424,9 @@ class MainWindow(QMainWindow):
         appToolbar.addAction(infoAction)
         appToolbar.addAction(settingsAction)
 
+        #
+        # Controller Toolbar section
+        #
         errorsLimitsAction = QAction(QIcon("img/set_errors.png"), 'Errors limits', self)
         errorsLimitsAction.setShortcut('E')
         errorsLimitsAction.setStatusTip("[E] Set values of errors limits")
@@ -432,6 +449,9 @@ class MainWindow(QMainWindow):
         contToolbar.addAction(restoreValuesAction)
         contToolbar.addAction(saveToEEPROMAction)
 
+        #
+        # Graphs Toolbar section
+        #
         playpauseAction = QAction(QIcon('img/play_pause.png'), 'Play/Pause', self)
         playpauseAction.setShortcut('P')
         playpauseAction.setStatusTip('[P] Play/pause graphs')
@@ -445,10 +465,12 @@ class MainWindow(QMainWindow):
         self.playpauseButton.setChecked(True)
         self.graphsWasRun = False
 
+
         mainMenu = self.menuBar().addMenu('&Menu')
         mainMenu.addAction(exitAction)
         mainMenu.addAction(infoAction)
         mainMenu.addAction(settingsAction)
+
 
         if self.app.isOfflineMode:
             self.statusBar().addWidget(QLabel("<font color='red'>Offline mode</font>"))
@@ -499,85 +521,139 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).showEvent(*args, **kwargs)
 
 
-    def closeEvent(self, QCloseEvent):
+    def closeEvent(self, event):
         self.app.quit()
 
 
 
 
 class MainApplication(QApplication):
+    """
+    Customized QApplication - entry point of the whole program
+    """
+
     # TODO: apply settings on-the-fly (not requiring a reboot)
     # TODO: add more ToolTips and StatusTips for elements
+    # TODO: list all used packets in 'about' (qdarkstyle, icons, etc.)
 
-    connLostSignal = pyqtSignal()
 
-    def __init__(self, argv):
+    connLostSignal = pyqtSignal()  # must be part of the class definition and cannot be dynamically added after
+
+
+    def __init__(self, argv: list):
+        """
+        MainApplication constructor
+
+        :param argv: the list of command line arguments passed to a Python script
+        """
+
         super(MainApplication, self).__init__(argv)
 
-        self.settings = settings.Settings(defaults='defaultSettings.json')
+
+        self.settings = settings.Settings(defaults='defaultSettings.json')  # settings [customized] dictionary
+
 
         if self.settings['appearance']['theme'] == 'dark':
+            # TODO: warns itself as a deprecated method though no suitable alternative has been suggested
             self.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
 
-        # self.connLostSignal = pyqtSignal()
+
+        # show this when the connection is broken
         self.connLostStatusBarLabel = QLabel("<font color='red'>Connection was lost. Trying to reconnect...</font>")
 
         self.isOfflineMode = False
+
         self.conn = remotecontroller.RemoteController(
             self.settings['network']['ip'],
             self.settings['network']['port'],
             conn_lost_signal=self.connLostSignal
         )
+
+        # RemoteController' self-check determines the state of the connection. Such app state determined during the
+        # startup process will remain during all following activities (i.e. app enters the demo mode) and can be changed
+        # only after the restart
         if self.conn.is_offline_mode:
             self.isOfflineMode = True
-            print("offline mode")
+            print("Offline mode")
             miscgraphics.MessageWindow("No connection to the remote controller. App goes to the Offline (demo) mode. "
-                               "All values are random. To try to reconnect please restart the app", status='Warning')
+                                "All values are random. To try to reconnect please restart the app", status='Warning')
+
         else:
-            # if connection is present and no demo mode then create timer for connection checking
+            # If connection is present (so no demo mode is needed) then create the timer for connection checking. It
+            # will start on MainWindow' show
             self.connCheckTimer = QTimer()
             self.connCheckTimer.timeout.connect(self.connCheckTimerHandler)
-            # self.connCheckTimer.start(self.settings['network']['checkInterval'])  # every 5 seconds
-            # also create handler function for connection lost (for example, when reading some coefficient from MCU)
+
+            # Also create a handler function for connection breaks (for example, when break is occur during the read of
+            # some coefficient from the controller)
             self.connLostSignal.connect(self.connLostHandler)
 
         self.conn.save_current_values()
 
-        self.mainWindow = MainWindow(self)
+
+        # We can create the MainWindow only after instantiating the RemoteController because it is used for obtaining
+        # values and setting parameters
+        self.mainWindow = MainWindow(app=self)
         self.mainWindow.show()
 
 
-    def quit(self):
+    def quit(self) -> None:
+        """
+        QApplication quit method
+
+        :return: None
+        """
+
         self.conn.close()
-        # print(f"pipe: {self.mainWindow.centralWidget.graphs.points_cnt}")
+
         super(MainApplication, self).quit()
 
 
-    def connCheckTimerHandler(self):
-        print("check connection")
-        if self.conn.check_connection() != 0:
+    def connCheckTimerHandler(self) -> None:
+        """
+        Procedure to invoke for connection checking
+
+        :return: None
+        """
+
+        print("Check connection")
+
+        if self.conn.check_connection() == remotecontroller.result['error']:
             self.connLostHandler()
         else:
+            # prevent of multiple calls of these instructions by using this flag
             if self.isOfflineMode:
                 self.isOfflineMode = False
-                print("reconnected")
+                print('Reconnected')
                 self.mainWindow.centralWidget.refreshAllPIDvalues()
                 self.mainWindow.statusBar().removeWidget(self.connLostStatusBarLabel)
                 self.mainWindow.statusBar().showMessage('Reconnected')
 
 
-    # handler function for the connLost slot
     @pyqtSlot()
-    def connLostHandler(self):
-        # TODO: exception: MainApplication has no attribute mainWindow
+    def connLostHandler(self) -> None:
+        """
+        Slot corresponding to MainApplication.connLostSignal (typically emitted from RemoteController on unsuccessful
+        read/write operations). Can also be called directly to handle connection break case
+
+        :return: None
+        """
+
+        # TODO: exception: MainApplication has no attribute mainWindow for short timeouts
+
         if not self.isOfflineMode:
             self.isOfflineMode = True
-            print('lost connection')
-            if self.mainWindow.centralWidget.graphs.isRun:
-                self.mainWindow.playpauseGraphs()
-            self.mainWindow.statusBar().addWidget(self.connLostStatusBarLabel)
-            miscgraphics.MessageWindow("Connection was lost. The app goes to the Offline mode and will be trying to reconnect",
-                                       status='Warning')
+            print("Connection lost")
+            try:
+                if self.mainWindow.centralWidget.graphs.isRun:
+                    self.mainWindow.playpauseGraphs()
+                self.mainWindow.statusBar().addWidget(self.connLostStatusBarLabel)
+                miscgraphics.MessageWindow(
+                    "Connection was lost. The app goes to the Offline mode and will be trying to reconnect",
+                    status='Warning')
+            except AttributeError:
+                print("too small timeout")
+                self.quit()
 
 
 

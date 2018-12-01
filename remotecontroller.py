@@ -75,6 +75,8 @@ var_cmd = {
 }
 var_cmd_swapped = {v: k for k, v in var_cmd.items()}
 
+# Use the same dictionary to parse controller' responses and as return value of functions so use it from other modules
+# for comparisons as well
 result = {
     'ok': 0,
     'error': 1
@@ -197,10 +199,13 @@ class InputThreadCommand(enum.Enum):
 
     MSG_CNT_GET = enum.auto()
     MSG_CNT_RST = enum.auto()
+
     STREAM_ACCEPT = enum.auto()
     STREAM_REJECT = enum.auto()
+
     INPUT_ACCEPT = enum.auto()
     INPUT_REJECT = enum.auto()
+
     EXIT = enum.auto()
 
 

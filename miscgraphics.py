@@ -1,6 +1,7 @@
+import random
 import string
 
-from PyQt5.QtGui import QPainter, QIcon, QPixmap
+from PyQt5.QtGui import QPainter, QIcon, QPixmap, QDoubleValidator
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QMessageBox, QAbstractButton, QPushButton, QGroupBox, QLabel,\
                             QLineEdit
 from PyQt5.QtCore import QSize
@@ -20,8 +21,8 @@ class PicButton(QAbstractButton):
         from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout
 
         app = QApplication(sys.argv)
-        button = PicButton("img/refresh.png", "img/refresh_hover.png", "img/refresh_pressed.png")
         window = QWidget()
+        button = PicButton("img/refresh.png", "img/refresh_hover.png", "img/refresh_pressed.png")
         layout = QHBoxLayout(window)
         layout.addWidget(button)
         window.show()
@@ -50,7 +51,7 @@ class PicButton(QAbstractButton):
         self.released.connect(self.update)
 
 
-    def paintEvent(self, event):
+    def paintEvent(self, event) -> None:
         if self.isDown():
             pix = self.pixmap_pressed
         elif self.underMouse():
@@ -61,13 +62,13 @@ class PicButton(QAbstractButton):
         QPainter(self).drawPixmap(event.rect(), pix)
 
 
-    def enterEvent(self, event):
+    def enterEvent(self, event) -> None:
         self.update()
 
-    def leaveEvent(self, event):
+    def leaveEvent(self, event) -> None:
         self.update()
 
-    def sizeHint(self):
+    def sizeHint(self) -> QSize:
         return QSize(24, 24)
 
 
@@ -122,7 +123,7 @@ class ValueGroupBox(QGroupBox):
     refresh PicButton to explicitly update it and a QLineEdit with an associated QPushButton to set a new value.
     """
 
-    def __init__(self, label: str, controller: remotecontroller.RemoteController, parent=None):
+    def __init__(self, label: str, controller: remotecontroller.RemoteController=None, parent=None):
         """
         ValueGroupBox constructor
 
@@ -143,18 +144,18 @@ class ValueGroupBox(QGroupBox):
         self.valLabel = QLabel()
         self.refreshVal()
 
-        refreshButton = PicButton("img/refresh.png", "img/refresh_hover.png", "img/refresh_pressed.png")
+        refreshButton = PicButton('img/refresh.png', 'img/refresh_hover.png', 'img/refresh_pressed.png')
         refreshButton.clicked.connect(self.refreshVal)
-        # refreshButton.setIcon(QIcon("img/refresh.png"))
 
         self.writeLine = QLineEdit()
         self.writeLine.setPlaceholderText(f"Enter new '{label}'")
+        self.writeLine.setValidator(QDoubleValidator())  # we can set a Locale() to correctly process floats
         writeButton = QPushButton('Send', self)
         writeButton.clicked.connect(self.writeButtonClicked)
 
         hBox1 = QHBoxLayout()
         hBox1.addWidget(self.valLabel)
-        hBox1.addStretch(1)
+        hBox1.addStretch(1)  # need to not distort the button when resizing
         hBox1.addWidget(refreshButton)
 
         hBox2 = QHBoxLayout()
@@ -168,17 +169,20 @@ class ValueGroupBox(QGroupBox):
         self.setLayout(vBox1)
 
 
-    def refreshVal(self):
+    def refreshVal(self) -> None:
         """
         Read a value from the RemoteController
 
         :return: None
         """
 
-        self.valLabel.setText(self.valLabelTemplate.format(self.controller.read(self.label)))
+        if self.controller is not None:
+            self.valLabel.setText(self.valLabelTemplate.format(self.controller.read(self.label)))
+        else:
+            self.valLabel.setText(self.valLabelTemplate.format(random.random()))
 
 
-    def writeButtonClicked(self):
+    def writeButtonClicked(self) -> None:
         """
         Send a new value to the RemoteController
 
@@ -186,13 +190,41 @@ class ValueGroupBox(QGroupBox):
         """
 
         try:
-            self.controller.write(self.label, float(self.writeLine.text()))
+            if self.controller is not None:
+                self.controller.write(self.label, float(self.writeLine.text()))
         except ValueError:  # user enters not valid number or NaN
             pass
         self.writeLine.clear()
-        self.refreshVal()  # read a value back to make sure writing was successful (not really necessary to perform)
+        # read a value back to make sure that writing was successful (not really necessary to perform)
+        self.refreshVal()
 
 
 
 if __name__ == '__main__':
-    pass
+    """
+    Use this block for testing purposes (run the module as a standalone script)
+    """
+
+    import sys
+    from PyQt5.QtWidgets import QApplication, QWidget
+
+    app = QApplication(sys.argv)
+    window = QWidget()
+
+    button = PicButton("img/refresh.png", "img/refresh_hover.png", "img/refresh_pressed.png")
+    button.clicked.connect(lambda: print("PicButton has been clicked"))
+
+    valueBox = ValueGroupBox("My value")
+
+    invokeMessageWindow = QPushButton("Message window")
+    invokeMessageWindow.clicked.connect(lambda: MessageWindow("I am MessageWindow", status='Info'))
+
+    layout = QHBoxLayout(window)
+    layout.addWidget(button)
+    layout.addWidget(valueBox)
+    layout.addWidget(invokeMessageWindow)
+
+    window.show()
+    app.aboutQt()
+
+    sys.exit(app.exec_())

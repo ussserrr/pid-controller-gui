@@ -76,7 +76,6 @@ class SettingsWindow(QWidget):
         self.ipLineEdit.setInputMask("000.000.000.000;_")
         self.portLineEdit = QLineEdit()
         self.portLineEdit.setValidator(QIntValidator(0, 65535))
-        # self.portLineEdit.setInputMask("90000")
         networkHBox1.addWidget(QLabel("IP address:"))
         networkHBox1.addWidget(self.ipLineEdit)
         networkHBox1.addWidget(QLabel("UDP port:"))

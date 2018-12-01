@@ -133,6 +133,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
         self.pointsCnt = 0
 
+        # notify a user about an overflow by a red circle appearing in an upper-left corner of the plot canvas
         self._warningSign = None
         self.warningSignRemoveTimer = QTimer()
         self.warningSignRemoveTimer.setSingleShot(True)
@@ -146,15 +147,28 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         return self._isRun
 
 
-    def _addWarningSign(self):
+    def _addWarningSign(self) -> None:
+        """
+        Notify a user about an overflow by a red circle appearing in an upper-left corner of the plot canvas
+
+        :return: None
+        """
+
         self._warningSign = self.procVarGraph.plot(y=[self.procVarRange[1]*0.75], x=[-self.nPoints*self.interval*0.95],
                                                    symbol='o', symbolSize=24, symbolPen='r', symbolBrush='r')
 
-    def _removeWarningSign(self):
+    def _removeWarningSign(self) -> None:
+        """
+        Notify a user about an overflow by a red circle appearing in an upper-left corner of the plot canvas (callback
+        for warningSignRemoveTimer.timeout slot)
+
+        :return: None
+        """
+
         self.procVarGraph.removeItem(self._warningSign)
 
 
-    def _overflowCheck(self):
+    def _overflowCheck(self) -> None:
         """
         Procedure to check the stream pipe overflow. When a rate of incoming stream socket packets is faster than an
         update time period of this graphs (i.e. pipe' readings) an internal buffer of the pipe entity will grow. We
@@ -179,7 +193,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
                 self.start()  # restart the stream
 
 
-    def start(self):
+    def start(self) -> None:
         """
         Prepare and start a live plotting
 
@@ -199,7 +213,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         self._isRun = True
 
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Stop a live plotting and do finish routines
 
@@ -224,7 +238,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         self._isRun = False
 
 
-    def toggle(self):
+    def toggle(self) -> None:
         """
         Toggle live plotting
 
@@ -237,7 +251,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
             self.start()
 
 
-    def _update(self):
+    def _update(self) -> None:
         """
         Routine to get a new data and plot it (i.e. redraw graphs)
 
