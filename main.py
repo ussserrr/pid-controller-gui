@@ -597,6 +597,7 @@ class MainWindow(QMainWindow):
         :return: None
         """
 
+        self.hide()
         self.app.quit()
 
 
