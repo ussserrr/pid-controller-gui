@@ -285,11 +285,9 @@ if __name__ == '__main__':
 =======
 import sys
 
-from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGroupBox, QLabel, QPushButton, \
-    QApplication, QSpinBox, QStatusBar, QProgressBar, QLineEdit, QCheckBox, QGridLayout, \
-    QTabWidget, QMainWindow, QToolTip, QAction, QLayout, QSizePolicy, QButtonGroup
-from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtCore import QTimer, QCoreApplication, QSettings, Qt, QT_VERSION_STR, pyqtSlot, pyqtSignal
+from PyQt5.QtCore import Qt, QCoreApplication, QT_VERSION_STR, QTimer, pyqtSlot, pyqtSignal
+from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QGridLayout, QHBoxLayout, QLabel, QAction
+from PyQt5.QtGui import QIcon
 from PyQt5.Qt import PYQT_VERSION_STR
 
 import qdarkstyle
@@ -300,25 +298,34 @@ import miscgraphics
 import graphs
 import settings
 import errorssettings
-from about import AboutWindow
-
-# TODO: rename all 'procVar_' and 'contOut_' to 'pv_', 'co_'. Maybe use _docstring_ for entire module to declare the glossary
+import about
 
 
 
 
 class CentralWidget(QWidget):
+    """
+    CentralWidget holds ValueGroupBox'es corresponding to PID setpoint and coefficients, live graphs and averaging
+    labels
+    """
 
-    def __init__(self, app, parent=None):
+    def __init__(self, app: QApplication, parent=None):
+        """
+        CentralWidget constructor
+
+        :param app: parent QApplication
+        :param parent: [optional] parent class
+        """
+
         super(CentralWidget, self).__init__(parent)
 
         self.app = app
 
         self.contValGroupBoxes = {
-            'setpoint': miscgraphics.ValueGroupBox('setpoint', controller=app.conn),
-            'kP': miscgraphics.ValueGroupBox('kP', controller=app.conn),
-            'kI': miscgraphics.ValueGroupBox('kI', controller=app.conn),
-            'kD': miscgraphics.ValueGroupBox('kD', controller=app.conn)
+            'setpoint':   miscgraphics.ValueGroupBox('setpoint',   controller=app.conn),
+            'kP':         miscgraphics.ValueGroupBox('kP',         controller=app.conn),
+            'kI':         miscgraphics.ValueGroupBox('kI',         controller=app.conn),
+            'kD':         miscgraphics.ValueGroupBox('kD',         controller=app.conn)
         }
 
         self.errorsSettingsWindow = errorssettings.ErrorsSettingsWindow(app)
@@ -326,22 +333,17 @@ class CentralWidget(QWidget):
         self.graphs = graphs.CustomGraphicsLayoutWidget(
             nPoints=app.settings['graphs']['numberOfPoints'],
             interval=app.settings['graphs']['updateInterval'],
-            procVarRange=(-2.0, 2.0),  # TODO: store as variables or make settings for these
+            procVarRange=(-2.0, 2.0),  # TODO: see pid.py
             contOutRange=(-2.0, 2.0),
             controlPipe=None if self.app.isOfflineMode else self.app.conn.input_thread_control_pipe_main,
             streamPipeRX=None if self.app.isOfflineMode else self.app.conn.stream.pipe_rx,
             theme=app.settings['appearance']['theme'],
         )
 
-        # self.calcAvrgUCheckBox = QCheckBox("Aver. U")
-        # self.calcAvrgUCheckBox.setStatusTip("Calculate average voltage in next measurement")
-        self.avrgULabel = self.graphs.procVarAverLabel
-        self.avrgULabel.setStatusTip('Average voltage of last measurement')
-
-        # self.calcAvrgPIDCheckBox = QCheckBox("Aver. PID-output")
-        # self.calcAvrgPIDCheckBox.setStatusTip("Calculate average PID-output value in next measurement")
-        self.avrgPIDLabel = self.graphs.contOutAverLabel
-        self.avrgPIDLabel.setStatusTip('Average PID-output value of last measurement')
+        self.graphs.procVarAvrgLabel.setToolTip("Average Process Variable value of last "
+                                                f"{self.graphs.procVarAvrgLabel.averageTime:.2f}s")
+        self.graphs.contOutAvrgLabel.setToolTip("Average Controller Output value of last "
+                                                f"{self.graphs.contOutAvrgLabel.averageTime:.2f}s")
 
         grid = QGridLayout()
         self.setLayout(grid)
@@ -355,20 +357,28 @@ class CentralWidget(QWidget):
 
         grid.addWidget(self.graphs, 0, 2, 14, 4)
 
-        avrgUHBox = QHBoxLayout()
-        avrgUHBox.addWidget(QLabel("Process Variable:"))
-        avrgUHBox.addWidget(self.avrgULabel)
-        grid.addLayout(avrgUHBox, 12, 0, 1, 2)
+        procVarAvrgHBox = QHBoxLayout()
+        procVarAvrgHBox.addWidget(QLabel("Process Variable:"))
+        procVarAvrgHBox.addWidget(self.graphs.procVarAvrgLabel, alignment=Qt.AlignLeft)
+        grid.addLayout(procVarAvrgHBox, 12, 0, 1, 2)
 
-        avrgPIDHBox = QHBoxLayout()
-        avrgPIDHBox.addWidget(QLabel("Controller Output:"))
-        avrgPIDHBox.addWidget(self.avrgPIDLabel)
-        grid.addLayout(avrgPIDHBox, 13, 0, 1, 2)
+        contOutAvrgHBox = QHBoxLayout()
+        contOutAvrgHBox.addWidget(QLabel("Controller Output:"))
+        contOutAvrgHBox.addWidget(self.graphs.contOutAvrgLabel, alignment=Qt.AlignLeft)
+        grid.addLayout(contOutAvrgHBox, 13, 0, 1, 2)
 
 
-    def refreshAllPIDvalues(self):
+    def refreshContValues(self) -> None:
+        """
+        Retrieve all controller parameters and update corresponding GUI elements. Useful to apply after connection's
+        breaks. This does not affect values saved during the app launch (RemoteController.save_current_values())
+
+        :return: None
+        """
+
         for groupBox in self.contValGroupBoxes.values():
             groupBox.refreshVal()
+
         self.errorsSettingsWindow.updateDisplayingValues('err_P_limits', 'err_I_limits')
 
 
@@ -379,11 +389,11 @@ class MainWindow(QMainWindow):
     MainWindow contains of toolbar, status bar, menu. All other items are placed on a CentralWidget
     """
 
-    def __init__(self, app, parent=None):
+    def __init__(self, app: QApplication, parent=None):
         """
         MainWindow constructor
 
-        :param app: parent application
+        :param app: parent QApplication
         :param parent: [optional] parent class
         """
 
@@ -403,18 +413,18 @@ class MainWindow(QMainWindow):
         #
         exitAction = QAction(QIcon('img/exit.png'), 'Exit', self)
         exitAction.setShortcut('Ctrl+Q')
-        exitAction.setStatusTip('[Ctrl+Q] Exit application')
+        exitAction.setStatusTip("[Ctrl+Q] Exit application")
         exitAction.triggered.connect(self.app.quit)
 
         infoAction = QAction(QIcon('img/info.png'), 'Info', self)
         infoAction.setShortcut('Ctrl+I')
-        infoAction.setStatusTip('[Ctrl+I] Application Info & About')
-        self.aboutWindow = AboutWindow(app)
+        infoAction.setStatusTip("[Ctrl+I] Application Info & About")
+        self.aboutWindow = about.AboutWindow(app)
         infoAction.triggered.connect(self.aboutWindow.show)
 
         settingsAction = QAction(QIcon('img/settings.png'), 'Settings', self)
         settingsAction.setShortcut('Ctrl+P')
-        settingsAction.setStatusTip('[Ctrl+P] Application Settings')
+        settingsAction.setStatusTip("[Ctrl+P] Application Settings")
         self.settingsWindow = settings.SettingsWindow(app)
         settingsAction.triggered.connect(self.settingsWindow.show)
 
@@ -427,17 +437,17 @@ class MainWindow(QMainWindow):
         #
         # Controller Toolbar section
         #
-        errorsLimitsAction = QAction(QIcon("img/set_errors.png"), 'Errors limits', self)
+        errorsLimitsAction = QAction(QIcon('img/set_errors.png'), 'Errors limits', self)
         errorsLimitsAction.setShortcut('E')
         errorsLimitsAction.setStatusTip("[E] Set values of errors limits")
         errorsLimitsAction.triggered.connect(self.centralWidget.errorsSettingsWindow.show)
 
-        restoreValuesAction = QAction(QIcon("img/restore.png"), 'Restore controller', self)
+        restoreValuesAction = QAction(QIcon('img/restore.png'), 'Restore controller', self)
         restoreValuesAction.setShortcut('R')
-        restoreValuesAction.setStatusTip('[R] Restore all controller parameters to values at the program start time')
+        restoreValuesAction.setStatusTip("[R] Restore all controller parameters to values at the program start time")
         restoreValuesAction.triggered.connect(self.restoreContValues)
 
-        saveToEEPROMAction = QAction(QIcon("img/eeprom.png"), 'Save to EEPROM', self)
+        saveToEEPROMAction = QAction(QIcon('img/eeprom.png'), 'Save to EEPROM', self)
         saveToEEPROMAction.setShortcut('S')
         saveToEEPROMAction.setStatusTip("[S] Save current controller configuration to EEPROM")
         saveToEEPROMAction.triggered.connect(self.saveToEEPROM)
@@ -454,7 +464,7 @@ class MainWindow(QMainWindow):
         #
         playpauseAction = QAction(QIcon('img/play_pause.png'), 'Play/Pause', self)
         playpauseAction.setShortcut('P')
-        playpauseAction.setStatusTip('[P] Play/pause graphs')
+        playpauseAction.setStatusTip("[P] Play/pause graphs")
         playpauseAction.triggered.connect(self.playpauseGraphs)
 
         graphsToolbar = self.addToolBar('graphs')
@@ -463,7 +473,7 @@ class MainWindow(QMainWindow):
         self.playpauseButton = graphsToolbar.widgetForAction(playpauseAction)
         self.playpauseButton.setCheckable(True)
         self.playpauseButton.setChecked(True)
-        self.graphsWasRun = False
+        self.graphsWereRun = False
 
 
         mainMenu = self.menuBar().addMenu('&Menu')
@@ -476,7 +486,13 @@ class MainWindow(QMainWindow):
             self.statusBar().addWidget(QLabel("<font color='red'>Offline mode</font>"))
 
 
-    def playpauseGraphs(self):
+    def playpauseGraphs(self) -> None:
+        """
+        Smartly toggles the state of live graphs
+
+        :return: None
+        """
+
         if self.centralWidget.graphs.isRun:
             self.playpauseButton.setChecked(True)
         else:
@@ -485,43 +501,102 @@ class MainWindow(QMainWindow):
         self.centralWidget.graphs.toggle()
 
 
-    def restoreContValues(self):
-        self.app.conn.restore_values(self.app.conn.snapshots[0])
-        self.centralWidget.refreshAllPIDvalues()
+    def restoreContValues(self) -> None:
+        """
+        Write PID parameters stored at program start to the controller
+
+        :return: None
+        """
+
+        self.app.conn.restore_values(self.app.conn.snapshots[0])  # currently save and use only one snapshot
+        self.centralWidget.refreshContValues()
 
 
-    def saveToEEPROM(self):
+    def saveToEEPROM(self) -> None:
+        """
+        Initiate writing of current parameters to the controller's EEPROM
+
+        :return: None
+        """
+
         if self.app.conn.save_to_eeprom() == remotecontroller.result['ok']:
-            miscgraphics.MessageWindow('Successfully saved', status='Info')
-            self.app.mainWindow.centralWidget.refreshAllPIDvalues()
+            miscgraphics.MessageWindow("Successfully saved", status='Info')
+            self.app.mainWindow.centralWidget.refreshContValues()
         else:
-            miscgraphics.MessageWindow('Saving failed!', status='Error')
+            miscgraphics.MessageWindow("Saving failed!", status='Error')
 
 
-    def hideEvent(self, *args, **kwargs):
-        print("The app has been hide")
+    def hideEvent(self, *args, **kwargs) -> None:
+        """
+        Detect window hide event to perform necessary actions. Modern OSes put minimized DE applications into some kind
+        of 'sleep' mode to optimize its own performance and energy consumption. This leads to, for example, QT timers to
+        be slow down and so on. And it may lead to some violations in a work flow such as connection breaks and stream
+        overflows. So it better to 'freeze' any network and graphical activity during such period and then smoothly
+        resume it when needed. The user doesn't stare at the application, anyway :)
+
+        Note: this doesn't include simple moving a window to the background (e.g. overlapping by another window)
+
+        :param args: positional arguments passing directly to the base-class function
+        :param kwargs: keyword arguments passing directly to the base-class function
+        :return: None
+        """
+
+        # 1. stop the connection check timer
         if not self.app.isOfflineMode:
             self.app.connCheckTimer.stop()
+
+        # 2. stop live plots (it stops both the stream and graphs)
         if self.centralWidget.graphs.isRun:
             self.playpauseGraphs()
-            self.graphsWasRun = True
+            self.graphsWereRun = True
         else:
-            self.graphsWasRun = False
+            self.graphsWereRun = False
+
+        # 3. in the end block the listening section of the input thread (to prevent pipes overflows)
         self.app.conn.pause()
+
+        # finally, call the base class' method
         super(MainWindow, self).hideEvent(*args, **kwargs)
 
 
-    def showEvent(self, *args, **kwargs):
-        print("The app has been restored")
+    def showEvent(self, *args, **kwargs) -> None:
+        """
+        Detect window show event to perform necessary actions. Modern OSes put minimized DE applications into some kind
+        of 'sleep' mode to optimize its own performance and energy consumption. This leads to, for example, QT timers to
+        be slow down and so on. And it may lead to some violations in a work flow such as connection breaks and stream
+        overflows. So it better to 'freeze' any network and graphical activity during such period and then smoothly
+        resume it when needed. The user doesn't stare at the application, anyway :)
+
+        Note: this doesn't include simple moving a window to the background (e.g. overlapping by another window)
+
+        :param args: positional arguments passing directly to the base-class function
+        :param kwargs: keyword arguments passing directly to the base-class function
+        :return: None
+        """
+
+        # 1. resume the listening section of the input thread first
         self.app.conn.resume()
+
+        # 2. start the connection check timer
         if not self.app.isOfflineMode:
             self.app.connCheckTimer.start(self.app.settings['network']['checkInterval'])
-        if self.graphsWasRun:
+
+        # 3. re-run graphs if they were in run
+        if self.graphsWereRun:
             self.playpauseGraphs()
+
+        # finally, call the base class' method
         super(MainWindow, self).showEvent(*args, **kwargs)
 
 
-    def closeEvent(self, event):
+    def closeEvent(self, event) -> None:
+        """
+        Catch the window close event - interpret it the same as an application termination
+
+        :param event: QT event
+        :return: None
+        """
+
         self.app.quit()
 
 
@@ -560,6 +635,9 @@ class MainApplication(QApplication):
 
         # show this when the connection is broken
         self.connLostStatusBarLabel = QLabel("<font color='red'>Connection was lost. Trying to reconnect...</font>")
+        # Also create a handler function for connection breaks (for example, when break is occur during the read of
+        # some coefficient from the controller)
+        self.connLostSignal.connect(self.connLostHandler)
 
         self.isOfflineMode = False
 
@@ -583,10 +661,6 @@ class MainApplication(QApplication):
             # will start on MainWindow' show
             self.connCheckTimer = QTimer()
             self.connCheckTimer.timeout.connect(self.connCheckTimerHandler)
-
-            # Also create a handler function for connection breaks (for example, when break is occur during the read of
-            # some coefficient from the controller)
-            self.connLostSignal.connect(self.connLostHandler)
 
         self.conn.save_current_values()
 
@@ -625,7 +699,7 @@ class MainApplication(QApplication):
             if self.isOfflineMode:
                 self.isOfflineMode = False
                 print('Reconnected')
-                self.mainWindow.centralWidget.refreshAllPIDvalues()
+                self.mainWindow.centralWidget.refreshContValues()
                 self.mainWindow.statusBar().removeWidget(self.connLostStatusBarLabel)
                 self.mainWindow.statusBar().showMessage('Reconnected')
 
@@ -639,8 +713,6 @@ class MainApplication(QApplication):
         :return: None
         """
 
-        # TODO: exception: MainApplication has no attribute mainWindow for short timeouts
-
         if not self.isOfflineMode:
             self.isOfflineMode = True
             print("Connection lost")
@@ -648,22 +720,36 @@ class MainApplication(QApplication):
                 if self.mainWindow.centralWidget.graphs.isRun:
                     self.mainWindow.playpauseGraphs()
                 self.mainWindow.statusBar().addWidget(self.connLostStatusBarLabel)
-                miscgraphics.MessageWindow(
-                    "Connection was lost. The app goes to the Offline mode and will be trying to reconnect",
-                    status='Warning')
+                miscgraphics.MessageWindow("Connection was lost. The app goes to the Offline mode and will be trying "
+                                           "to reconnect", status='Warning')
+
+            # This exception is met when the RemoteController.check_connection() test has been passed but following
+            # read/write operations cannot be successfully performed due to small corresponding timeouts. Then, connLost
+            # signal is emitting. Since the RemoteController initialization has not been complete MainWindow certainly
+            # has not been instantiated yet and so we will catch this exception. We can simply ignore such case and just
+            # quietly mark the connection as offline without any notifications toward the user
             except AttributeError:
-                print("too small timeout")
-                self.quit()
+                print("Too small timeout")
+                miscgraphics.MessageWindow("It seems like the connection is present but specified read/write timeouts "
+                                           "is too small. Consider to fix your network or edit timeouts to match your "
+                                           f"timings (see '{remotecontroller.__name__}.py' module).", status='Warning')
 
 
 
 
 if __name__ == '__main__':
+    """
+    Entry point
+    """
 
     QCoreApplication.setOrganizationName("Andrey Chufyrev")
     QCoreApplication.setApplicationName("PID controller GUI")
 
-    app = MainApplication(sys.argv)
+    application = MainApplication(sys.argv)
 
+<<<<<<< HEAD
     sys.exit(app.exec_())
 >>>>>>> 9a70e43... initial commit
+=======
+    sys.exit(application.exec_())
+>>>>>>> 57670f2... documentation 6, GUI fixes

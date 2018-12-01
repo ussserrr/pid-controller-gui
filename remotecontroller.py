@@ -1,3 +1,7 @@
+"""
+Docstring
+"""
+
 import copy
 import datetime
 import enum
@@ -12,9 +16,15 @@ import random
 
 
 
+#
+# buffer size in bytes
+#
 BUF_SIZE = 9
 FLOAT_SIZE = 4
 
+#
+# timeouts in seconds
+#
 THREAD_INPUT_HANDLER_SLEEP_TIME = 0.005
 
 CHECK_CONNECTION_TIMEOUT_FIRST_CHECK = 2.0
@@ -25,7 +35,7 @@ READ_WRITE_TIMEOUT_SYNCHRONOUS = 1.0
 
 
 class _Response(ctypes.Structure):
-    """Bitfield structure for easy parsing of responses from remote controller"""
+    """Bitfield structure for easy parsing of responses from the remote controller"""
     _fields_ = [
         ('stream', ctypes.c_uint8, 2),  # LSB
         ('result', ctypes.c_uint8, 1),
@@ -408,17 +418,14 @@ class RemoteController:
         )
         self.input_thread.start()
 
-        if conn_lost_signal is not None:
-            self.conn_lost_signal = conn_lost_signal
-        else:
-            self.conn_lost_signal = None
+        self.conn_lost_signal = conn_lost_signal
 
         # use recently started thread to check an actual connection and if it is not present close all the related stuff
-        if self.check_connection(timeout=CHECK_CONNECTION_TIMEOUT_FIRST_CHECK) != 0:
+        if self.check_connection(timeout=CHECK_CONNECTION_TIMEOUT_FIRST_CHECK) == result['error']:
             self._is_offline_mode = True
             self.close()
-
-        self.stream.stop()  # explicitly stop the stream in case it somehow was active
+        else:
+            self.stream.stop()  # explicitly stop the stream in case it somehow was active
 
 
     @property
@@ -514,6 +521,7 @@ class RemoteController:
             if self.var_cmd_pipe_rx.poll(timeout=READ_WRITE_TIMEOUT_SYNCHRONOUS):
                 response = self.var_cmd_pipe_rx.recv()
             else:
+                self._is_offline_mode = True
                 if self.conn_lost_signal is not None:
                     self.conn_lost_signal.emit()
                 return self._parse_response(what)
@@ -541,6 +549,7 @@ class RemoteController:
             if self.var_cmd_pipe_rx.poll(timeout=READ_WRITE_TIMEOUT_SYNCHRONOUS):
                 response = self.var_cmd_pipe_rx.recv()
             else:
+                self._is_offline_mode = True
                 if self.conn_lost_signal is not None:
                     self.conn_lost_signal.emit()
                 return result['error']
@@ -658,7 +667,8 @@ class RemoteController:
         :return: None
         """
 
-        self.stream.close()
+        if not self._is_offline_mode:
+            self.stream.close()
 
         self.var_cmd_pipe_rx.close()
         self.var_cmd_pipe_tx.close()
@@ -678,15 +688,18 @@ if __name__ == '__main__':
     Use this block for testing purposes (run the module as a standalone script)
     """
 
-    # conn = RemoteController('127.0.0.1', 1200)
-    #
-    # conn.stream.start()
-    #
-    # for i in range(10):
-    #     if conn.stream.pipe_rx.poll():
-    #         point = conn.stream.pipe_rx.recv()
-    #         print(point)
-    #     else:
-    #         time.sleep(0.5)
-    #
-    # conn.close()
+    conn = RemoteController('127.0.0.1', 1200)
+    print('offline mode:', conn.is_offline_mode)
+
+    print('setpoint:', conn.read('setpoint'))
+
+    print('some stream values:')
+    conn.stream.start()
+    for i in range(50):
+        if conn.stream.pipe_rx.poll():
+            point = conn.stream.pipe_rx.recv()
+            print(point)
+        else:
+            time.sleep(0.005)
+
+    conn.close()

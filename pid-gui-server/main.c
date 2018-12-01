@@ -20,9 +20,6 @@ int sockfd;
 struct sockaddr_in clientaddr;  // client address
 socklen_t clientlen;  // byte size of client's address
 
-// int points_cnt;
-// float stream_values[2];
-
 
 /*
  *  Wrapper for perror
@@ -80,7 +77,6 @@ int main() {
      */
     struct sockaddr_in serveraddr;  // server address
     memset((unsigned char *)&serveraddr, 0, sizeof(serveraddr));
-    // bzero((char *)&serveraddr, sizeof(serveraddr));
     serveraddr.sin_family = AF_INET;
     serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
     serveraddr.sin_port = htons((unsigned short)portno);
@@ -109,61 +105,22 @@ int main() {
         .tv_nsec = 5000000       /* nanoseconds */
     };
 
+    int no_msg_cnt = 0;
+    int const no_msg_cnt_warn = 15.0/(5000000.0/1000000000.0);
+    bool is_stream_stop = false;
+
     printf("Server listening on port %d\n", portno);
-
-    int msec = 0;
-    #define NO_MSG_TIMEOUT 15000  // 15 seconds
-    clock_t before = clock();
-
-    // points_cnt = 0;
-    // int stream_divider_cnt = 0;
-    // unsigned char stream_buf[STREAM_BUF_SIZE];
-    // stream_buf[0] = STREAM_PREFIX;
-    // double x = 0.0;
-    // double const dx = 0.1;
 
     /*
      *  main loop: wait for a datagram, process it, reply
      */
     while (1) {
 
-        clock_t difference = clock() - before;
-        msec = difference * 1000 / CLOCKS_PER_SEC;
-        if (msec > NO_MSG_TIMEOUT) {
+        if ((no_msg_cnt >= no_msg_cnt_warn) && (!is_stream_stop)) {
             printf("No incoming messages within a timeout, stop the stream\n");
             stream_stop();
-
-            before = clock();
-            msec = 0;
-
-            // close(sockfd);
-            // pthread_kill(pv_stream_thread_id, SIGTERM);
-            // exit(0);
+            is_stream_stop = true;
         }
-
-
-//         if (stream_run) {
-//             if (stream_divider_cnt == 4) {
-// //                stream_divider_cnt = 0;
-
-//                 // send point
-//                 if (x > 2.0*M_PI)
-//                     x = 0.0;
-//                 stream_values[0] = (float)sin(x);  // Process Variable
-//                 stream_values[1] = (float)cos(x);  // Controller Output
-//                 x = x + dx;
-
-//                 memcpy(&stream_buf[1], stream_values, 2*sizeof(float));
-
-//                 ssize_t n = sendto(sockfd, (const void *)stream_buf, STREAM_BUF_SIZE, 0, (const struct sockaddr *)&clientaddr, clientlen);
-//                 if (n < 0)
-//                     error("ERROR on sendto");
-
-//                 points_cnt++;
-//             }
-//             else
-//                 stream_divider_cnt++;
-//         }
 
 
         int data_len = 0;
@@ -211,15 +168,15 @@ int main() {
             // pthread_mutex_unlock(&sock_mutex);
             memset(buf, 0, BUF_SIZE);  // reset the buffer
 
-            before = clock();
-            msec = 0;
-
-            // if (stream_was_run)
-            //     stream_start();
+            no_msg_cnt = 0;
+            is_stream_stop = false;
         }
         else {
-        // no available data
-        // pthread_mutex_unlock(&sock_mutex);
+            // no available data
+            // pthread_mutex_unlock(&sock_mutex);
+            if (!is_stream_stop)
+                no_msg_cnt++;
+
             nanosleep(&server_response_delay, NULL);  // pause the main thread, then repeat
         }
     }

@@ -150,12 +150,14 @@ class ValueGroupBox(QGroupBox):
         self.writeLine = QLineEdit()
         self.writeLine.setPlaceholderText(f"Enter new '{label}'")
         self.writeLine.setValidator(QDoubleValidator())  # we can set a Locale() to correctly process floats
+        self.writeLine.setToolTip("Float value")
         writeButton = QPushButton('Send', self)
         writeButton.clicked.connect(self.writeButtonClicked)
 
         hBox1 = QHBoxLayout()
         hBox1.addWidget(self.valLabel)
-        hBox1.addStretch(1)  # need to not distort the button when resizing
+        hBox1.addStretch()  # need to not distort the button when resizing
+        hBox1.addSpacing(25)
         hBox1.addWidget(refreshButton)
 
         hBox2 = QHBoxLayout()

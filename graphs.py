@@ -122,9 +122,9 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         self.contOutGraph.showGrid(x=True, y=True, alpha=0.2)
 
         # label widget accumulating incoming values and calculating an average from last 'averageTime' seconds
-        self.procVarAverLabel = pyqtgraph.ValueLabel(siPrefix=True, suffix='V',
+        self.procVarAvrgLabel = pyqtgraph.ValueLabel(siPrefix=True, suffix='V',
                                                      averageTime=nPoints*interval*0.001)
-        self.contOutAverLabel = pyqtgraph.ValueLabel(siPrefix=True, suffix='Parrots',
+        self.contOutAvrgLabel = pyqtgraph.ValueLabel(siPrefix=True, suffix='Parrots',
                                                      averageTime=nPoints*interval*0.001)
 
         # data receiving and plots redrawing timer
@@ -283,8 +283,8 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         self.contOutGraph.curves[0].setData(self.timeAxes, contOutData)
 
         # add the same point to the averaging label
-        self.procVarAverLabel.setValue(self.lastPoint['pv'])
-        self.contOutAverLabel.setValue(self.lastPoint['co'])
+        self.procVarAvrgLabel.setValue(self.lastPoint['pv'])
+        self.contOutAvrgLabel.setValue(self.lastPoint['co'])
 
 
 
@@ -312,8 +312,8 @@ if __name__ == '__main__':
 
     layout = QVBoxLayout(window)
     layout.addWidget(graphs)
-    layout.addWidget(graphs.procVarAverLabel)
-    layout.addWidget(graphs.contOutAverLabel)
+    layout.addWidget(graphs.procVarAvrgLabel)
+    layout.addWidget(graphs.contOutAvrgLabel)
 
     window.show()
     sys.exit(app.exec_())
