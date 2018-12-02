@@ -51,8 +51,8 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
     """
 
     def __init__(
-            self, nPoints: int=200, interval: int=17,
-            procVarRange: tuple=(-1.0, 1.0), contOutRange: tuple=(-1.0, 1.0),
+            self, names: tuple=('ABC', 'DEF'), nPoints: int=200, interval: int=17,
+            ranges: tuple=((-1.0, 1.0), (-1.0, 1.0)), units: tuple=('lol', 'kek'),
             controlPipe: multiprocessing.connection.Connection=None,
             streamPipeRX: multiprocessing.connection.Connection=None,
             theme: str='dark',
@@ -77,14 +77,10 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         super(CustomGraphicsLayoutWidget, self).__init__()
 
         self.nPoints = nPoints
-        self.lastPoint = {
-            'pv': 0.0,
-            'co': 0.0
-        }
+        self.lastPoint = np.zeros(len(names))
         self.interval = interval
 
-        self.procVarRange = procVarRange
-        self.contOutRange = contOutRange
+        self.ranges = list(ranges)
 
         # axis is "starting" at the right border (current time) and goes to the past to the left (negative time)
         self.timeAxes = np.linspace(-nPoints*interval, 0, nPoints)
@@ -103,29 +99,24 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
         self._isRun = False
 
-        # process variable graph
-        self.procVarGraph = self.addPlot(y=np.zeros([self.nPoints]),
-                                         labels={'right': "Process Variable"}, pen='r')
-        self.procVarGraph.setRange(yRange=procVarRange)
-        self.procVarGraph.hideButtons()
-        self.procVarGraph.hideAxis('left')
-        self.procVarGraph.showGrid(x=True, y=True, alpha=0.2)
-
-        self.nextRow()
-
-        # controller output graph
-        self.contOutGraph = self.addPlot(y=np.zeros([self.nPoints]),
-                                         labels={'right': "Controller Output", 'bottom': "Time, ms"}, pen='r')
-        self.contOutGraph.setRange(yRange=contOutRange)
-        self.contOutGraph.hideButtons()
-        self.contOutGraph.hideAxis('left')
-        self.contOutGraph.showGrid(x=True, y=True, alpha=0.2)
+        self.graphs = []
+        for idx, name in enumerate(names):
+            if name == names[-1]:
+                self.graphs.append(self.addPlot(y=np.zeros(nPoints), labels={'bottom': "Time, ms",
+                                                                             'right': name}, pen='r'))
+            else:
+                self.graphs.append(self.addPlot(y=np.zeros(nPoints), labels={'right': name}, pen='r'))
+            self.graphs[idx].setRange(yRange=ranges[idx])
+            self.graphs[idx].hideButtons()
+            self.graphs[idx].hideAxis('left')
+            self.graphs[idx].showGrid(x=True, y=True, alpha=0.2)
+            self.nextRow()
 
         # label widget accumulating incoming values and calculating an average from last 'averageTime' seconds
-        self.procVarAvrgLabel = pyqtgraph.ValueLabel(siPrefix=True, suffix='V',
-                                                     averageTime=nPoints*interval*0.001)
-        self.contOutAvrgLabel = pyqtgraph.ValueLabel(siPrefix=True, suffix='Parrots',
-                                                     averageTime=nPoints*interval*0.001)
+        self.averageLabels = []
+        for unit in units:
+            self.averageLabels.append(pyqtgraph.ValueLabel(siPrefix=True, suffix=unit,
+                                                           averageTime=nPoints*interval*0.001))
 
         # data receiving and plots redrawing timer
         self.updateTimer = QTimer()
@@ -154,7 +145,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         :return: None
         """
 
-        self._warningSign = self.procVarGraph.plot(y=[self.procVarRange[1]*0.75], x=[-self.nPoints*self.interval*0.95],
+        self._warningSign = self.graphs[0].plot(y=[self.ranges[0][1]*0.75], x=[-self.nPoints*self.interval*0.95],
                                                    symbol='o', symbolSize=24, symbolPen='r', symbolBrush='r')
 
     def _removeWarningSign(self) -> None:
@@ -165,7 +156,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         :return: None
         """
 
-        self.procVarGraph.removeItem(self._warningSign)
+        self.graphs[0].removeItem(self._warningSign)
 
 
     def _overflowCheck(self) -> None:
@@ -201,8 +192,8 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         """
 
         # reset data cause it has changed during the pause time
-        self.procVarGraph.curves[0].setData(self.timeAxes, np.zeros([self.nPoints]))
-        self.contOutGraph.curves[0].setData(self.timeAxes, np.zeros([self.nPoints]))
+        for graph in self.graphs:
+            graph.curves[0].setData(self.timeAxes, np.zeros(self.nPoints))
 
         self.updateTimer.start(self.interval)
 
@@ -260,31 +251,23 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
         # use fake (random) numbers in offline mode
         if self._isOfflineMode:
-            self.lastPoint['pv'] = -0.5 + np.random.rand()
-            self.lastPoint['co'] = -0.5 + np.random.rand()
+            self.lastPoint = -0.5 + np.random.random(len(self.lastPoint))
             self.pointsCnt += 1
         else:
             try:
                 if self.streamPipeRX.poll():
                     point = self.streamPipeRX.recv()
-                    self.lastPoint['pv'] = point[0]
-                    self.lastPoint['co'] = point[1]
+                    self.lastPoint = point
                     self.pointsCnt += 1
             except OSError:  # may occur during an exit mess
                 pass
 
         # shift points array on 1 position to free up the place for a new point
-        procVarData = np.roll(self.procVarGraph.curves[0].getData()[1], -1)
-        procVarData[-1] = self.lastPoint['pv']
-        contOutData = np.roll(self.contOutGraph.curves[0].getData()[1], -1)
-        contOutData[-1] = self.lastPoint['co']
-
-        self.procVarGraph.curves[0].setData(self.timeAxes, procVarData)
-        self.contOutGraph.curves[0].setData(self.timeAxes, contOutData)
-
-        # add the same point to the averaging label
-        self.procVarAvrgLabel.setValue(self.lastPoint['pv'])
-        self.contOutAvrgLabel.setValue(self.lastPoint['co'])
+        for idx, (graph, averageLabel) in enumerate(zip(self.graphs, self.averageLabels)):
+            data = np.roll(graph.curves[0].getData()[1], -1)
+            data[-1] = self.lastPoint[idx]
+            graph.curves[0].setData(self.timeAxes, data)
+            averageLabel.setValue(self.lastPoint[idx])
 
 
 
@@ -299,21 +282,13 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = QWidget()
 
-    graphs = CustomGraphicsLayoutWidget(
-        nPoints=200,
-        procVarRange=(-2.0, 2.0),
-        contOutRange=(-2.0, 2.0),
-        interval=17,  # ~60 FPS
-        controlPipe=None,
-        streamPipeRX=None,
-        theme='dark',
-    )
+    graphs = CustomGraphicsLayoutWidget(names=('1', '2', '3'), ranges=((-1,1), (-1,1), (-1,1)), units=('A', 'B', 'C'))
     graphs.start()
 
     layout = QVBoxLayout(window)
     layout.addWidget(graphs)
-    layout.addWidget(graphs.procVarAvrgLabel)
-    layout.addWidget(graphs.contOutAvrgLabel)
+    for label in graphs.averageLabels:
+        layout.addWidget(label)
 
     window.show()
     sys.exit(app.exec_())

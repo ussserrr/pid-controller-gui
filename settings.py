@@ -22,6 +22,7 @@ class Settings(dict):
             self.defaults = json.load(defaultSettingsJSONFile)
 
         self.persistentStorage = QSettings()
+        # self.persistentStorage.clear()
         self._retrieve()
 
 

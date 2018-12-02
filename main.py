@@ -322,10 +322,11 @@ class CentralWidget(QWidget):
         self.app = app
 
         self.contValGroupBoxes = {
-            'setpoint':   miscgraphics.ValueGroupBox('setpoint',   controller=app.conn),
-            'kP':         miscgraphics.ValueGroupBox('kP',         controller=app.conn),
-            'kI':         miscgraphics.ValueGroupBox('kI',         controller=app.conn),
-            'kD':         miscgraphics.ValueGroupBox('kD',         controller=app.conn)
+            'setpoint': miscgraphics.ValueGroupBox(
+                                       'setpoint', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn),
+            'kP': miscgraphics.ValueGroupBox('kP', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn),
+            'kI': miscgraphics.ValueGroupBox('kI', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn),
+            'kD': miscgraphics.ValueGroupBox('kD', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn)
         }
 
         self.errorsSettingsWindow = errorssettings.ErrorsSettingsWindow(app)
@@ -333,8 +334,10 @@ class CentralWidget(QWidget):
         self.graphs = graphs.CustomGraphicsLayoutWidget(
             nPoints=app.settings['graphs']['numberOfPoints'],
             interval=app.settings['graphs']['updateInterval'],
-            procVarRange=(-2.0, 2.0),  # TODO: see pid.py
-            contOutRange=(-2.0, 2.0),
+            procVarRange=(app.settings['pid']['processVariable']['limits']['min'],
+                          app.settings['pid']['processVariable']['limits']['max']),
+            contOutRange=(app.settings['pid']['controllerOutput']['limits']['min'],
+                          app.settings['pid']['controllerOutput']['limits']['max']),
             controlPipe=None if self.app.isOfflineMode else self.app.conn.input_thread_control_pipe_main,
             streamPipeRX=None if self.app.isOfflineMode else self.app.conn.stream.pipe_rx,
             theme=app.settings['appearance']['theme'],
@@ -401,7 +404,7 @@ class MainWindow(QMainWindow):
 
         self.app = app
 
-        self.setWindowTitle("PID controller GUI")
+        self.setWindowTitle(QCoreApplication.applicationName())
         self.setWindowIcon(QIcon('img/icon.png'))
 
 

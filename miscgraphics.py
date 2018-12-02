@@ -123,7 +123,7 @@ class ValueGroupBox(QGroupBox):
     refresh PicButton to explicitly update it and a QLineEdit with an associated QPushButton to set a new value.
     """
 
-    def __init__(self, label: str, controller: remotecontroller.RemoteController=None, parent=None):
+    def __init__(self, label: str, float_fmt: str= '{:.3f}', controller: remotecontroller.RemoteController=None, parent=None):
         """
         ValueGroupBox constructor
 
@@ -140,7 +140,7 @@ class ValueGroupBox(QGroupBox):
         self.controller = controller
 
         # prepare a template string using another template string :)
-        self.valLabelTemplate = string.Template("Current $label: <b>{:.3f}</b>").safe_substitute(label=label)
+        self.valLabelTemplate = string.Template(f"Current $label: <b>{float_fmt}</b>").safe_substitute(label=label)
         self.valLabel = QLabel()
         self.refreshVal()
 

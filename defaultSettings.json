@@ -1,14 +1,43 @@
 {
+
   "network": {
     "ip": "127.0.0.1",
     "port": 1200,
     "checkInterval": 5000
   },
+
+
   "appearance": {
     "theme": "light"
   },
+
+
   "graphs": {
     "updateInterval": 19,
     "numberOfPoints": 200
+  },
+
+
+  "pid": {
+    "processVariable": {
+      "name": "Process Variable",
+      "limits": {
+        "min": -2.0,
+        "max": 2.0
+      },
+      "unit": "Monkeys"
+    },
+
+    "controllerOutput": {
+      "name": "Controller Output",
+      "limits": {
+        "min": -2.0,
+        "max": 2.0
+      },
+      "unit": "Parrots"
+    },
+
+    "valueFormat": "{:.3f}"
   }
+
 }

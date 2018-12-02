@@ -2,8 +2,10 @@
 Controller-specific definitions and values
 """
 
-pv_graph_min_max = (-2.0, 2.0)
+# TODO: add me
+# TODO: add logging maybe
 
+pv_graph_min_max = (-2.0, 2.0)
 co_graph_min_max = (-2.0, 2.0)
 
 setpoint_fmt_str = '{:.3f}'
