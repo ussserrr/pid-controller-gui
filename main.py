@@ -349,7 +349,7 @@ class CentralWidget(QWidget):
 
         # TODO: draw a scheme of this grid in documentation
         # https://stackoverflow.com/questions/5909873/how-can-i-pretty-print-ascii-tables-with-python
-        for groupBox, y in zip(self.contValGroupBoxes.values(), [0,3,6,9]):
+        for groupBox, y in zip(self.contValGroupBoxes, [0,3,6,9]):
             grid.addWidget(groupBox, y, 0, 3, 2)
 
         for averageLabel, name, y in zip(self.graphs.averageLabels, self.graphs.names, [12,13]):
@@ -369,7 +369,7 @@ class CentralWidget(QWidget):
         :return: None
         """
 
-        for groupBox in self.contValGroupBoxes.values():
+        for groupBox in self.contValGroupBoxes:
             groupBox.refreshVal()
 
         self.errorsSettingsWindow.updateDisplayingValues('err_P_limits', 'err_I_limits')
