@@ -1,3 +1,7 @@
+"""
+Docstring
+"""
+
 import multiprocessing.connection
 
 import numpy as np
@@ -51,23 +55,28 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
     """
 
     def __init__(
-            self, names: tuple=('ABC', 'DEF'), nPoints: int=200, interval: int=17,
-            ranges: tuple=((-1.0, 1.0), (-1.0, 1.0)), units: tuple=('lol', 'kek'),
+            self, names: tuple=("Process Variable", "Controller Output"), numPoints: int=200, interval: int=17,
+            ranges: tuple=((-2.0, 2.0), (-2.0, 2.0)), units: tuple=('Monkeys', 'Parrots'),
             controlPipe: multiprocessing.connection.Connection=None,
             streamPipeRX: multiprocessing.connection.Connection=None,
             theme: str='dark',
     ):
         """
-        Graphs' constructor
+        Graphs' constructor. Lengths of tuple arguments should be equal and each item in them should respectively match
+        others
 
-        :param nPoints: number of points in each graph
+        :param names: tuple of strings with graphs' names
+        :param numPoints: number of points in each graph
         :param interval: time in ms to force the plot refresh
-        :param procVarRange: Y-limits of the first plot (process variable)
-        :param contOutRange: Y-limits of the second plot (controller output)
+        :param ranges: tuple of tuples with (min,max) values of each plot respectively
+        :param units: tuple of strings representing measurement unit of each plot
         :param controlPipe: multiprocessing.Connection instance to communicate with a stream source
         :param streamPipeRX: multiprocessing.Connection instance from where new points should arrive
         :param theme: string representing visual appearance of the widget ('light' or 'dark')
         """
+
+        # lengths of tuple arguments should be equal
+        assert len(names) == len(ranges) == len(units)
 
         # need to set a theme before any other pyqtgraph operations
         if theme != 'dark':
@@ -76,14 +85,19 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
         super(CustomGraphicsLayoutWidget, self).__init__()
 
-        self.nPoints = nPoints
+
+        self.nPoints = numPoints
+        self.pointsCnt = 0
         self.lastPoint = np.zeros(len(names))
         self.interval = interval
 
+        self.names = list(names)  # for usage outside the class
         self.ranges = list(ranges)
 
-        # axis is "starting" at the right border (current time) and goes to the past to the left (negative time)
-        self.timeAxes = np.linspace(-nPoints*interval, 0, nPoints)
+        # X (time) axis is "starting" at the right border (current time) and goes to the past to the left (negative
+        # time). It remains the same for an entire Graphs lifetime
+        self.timeAxes = np.linspace(-numPoints * interval, 0, numPoints)
+
 
         if controlPipe is not None and streamPipeRX is not None:
             self._isOfflineMode = False
@@ -99,30 +113,31 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
 
         self._isRun = False
 
+
         self.graphs = []
-        for idx, name in enumerate(names):
+        for name, range in zip(names, ranges):
             if name == names[-1]:
-                self.graphs.append(self.addPlot(y=np.zeros(nPoints), labels={'bottom': "Time, ms",
-                                                                             'right': name}, pen='r'))
+                graph = self.addPlot(y=np.zeros(numPoints), labels={'right': name, 'bottom': "Time, ms"}, pen='r')
             else:
-                self.graphs.append(self.addPlot(y=np.zeros(nPoints), labels={'right': name}, pen='r'))
-            self.graphs[idx].setRange(yRange=ranges[idx])
-            self.graphs[idx].hideButtons()
-            self.graphs[idx].hideAxis('left')
-            self.graphs[idx].showGrid(x=True, y=True, alpha=0.2)
+                graph = self.addPlot(y=np.zeros(numPoints), labels={'right': name}, pen='r')
+            graph.setRange(yRange=range)
+            graph.hideButtons()
+            graph.hideAxis('left')
+            graph.showGrid(x=True, y=True, alpha=0.2)
+            self.graphs.append(graph)
             self.nextRow()
 
         # label widget accumulating incoming values and calculating an average from last 'averageTime' seconds
         self.averageLabels = []
-        for unit in units:
-            self.averageLabels.append(pyqtgraph.ValueLabel(siPrefix=True, suffix=unit,
-                                                           averageTime=nPoints*interval*0.001))
+        for name, unit in zip(names, units):
+            averageLabel = pyqtgraph.ValueLabel(siPrefix=True, suffix=unit, averageTime=numPoints * interval * 0.001)
+            averageLabel.setToolTip(f"Average {name} value of last {averageLabel.averageTime:.2f}s")
+            self.averageLabels.append(averageLabel)
+
 
         # data receiving and plots redrawing timer
         self.updateTimer = QTimer()
         self.updateTimer.timeout.connect(self._update)
-
-        self.pointsCnt = 0
 
         # notify a user about an overflow by a red circle appearing in an upper-left corner of the plot canvas
         self._warningSign = None
@@ -146,7 +161,7 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
         """
 
         self._warningSign = self.graphs[0].plot(y=[self.ranges[0][1]*0.75], x=[-self.nPoints*self.interval*0.95],
-                                                   symbol='o', symbolSize=24, symbolPen='r', symbolBrush='r')
+                                                symbol='o', symbolSize=24, symbolPen='r', symbolBrush='r')
 
     def _removeWarningSign(self) -> None:
         """
@@ -263,11 +278,11 @@ class CustomGraphicsLayoutWidget(pyqtgraph.GraphicsLayoutWidget):
                 pass
 
         # shift points array on 1 position to free up the place for a new point
-        for idx, (graph, averageLabel) in enumerate(zip(self.graphs, self.averageLabels)):
+        for point, graph, averageLabel in zip(self.lastPoint, self.graphs, self.averageLabels):
             data = np.roll(graph.curves[0].getData()[1], -1)
-            data[-1] = self.lastPoint[idx]
+            data[-1] = point
             graph.curves[0].setData(self.timeAxes, data)
-            averageLabel.setValue(self.lastPoint[idx])
+            averageLabel.setValue(point)
 
 
 
@@ -282,7 +297,7 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = QWidget()
 
-    graphs = CustomGraphicsLayoutWidget(names=('1', '2', '3'), ranges=((-1,1), (-1,1), (-1,1)), units=('A', 'B', 'C'))
+    graphs = CustomGraphicsLayoutWidget()
     graphs.start()
 
     layout = QVBoxLayout(window)

@@ -1,9 +1,14 @@
+"""
+Docstring
+"""
+
 import copy
 import json
 import ipaddress
 
 from PyQt5.QtCore import QSettings
-from PyQt5.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QGridLayout, QGroupBox, QLabel, QPushButton, QLineEdit, QSpinBox, QButtonGroup
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QGroupBox, QRadioButton, QLabel,\
+                            QPushButton, QLineEdit, QSpinBox, QButtonGroup
 from PyQt5.QtGui import QIcon, QIntValidator
 
 # local imports
@@ -11,10 +16,18 @@ import miscgraphics
 
 
 
-
 class Settings(dict):
+    """
+    Easier way to manage different parameters. Briefly speaking it combines conventional dictionary with additional
+    interface to QSettings via 'persistentStorage' property
+    """
 
-    def __init__(self, defaults=''):
+    def __init__(self, defaults: str='defaultSettings.json'):
+        """
+        Settings constructor. Automatically retrieving settings from the persistent storage if they are present
+
+        :param defaults: path to default settings JSON file
+        """
 
         super(Settings, self).__init__()
 
@@ -22,51 +35,86 @@ class Settings(dict):
             self.defaults = json.load(defaultSettingsJSONFile)
 
         self.persistentStorage = QSettings()
-        # self.persistentStorage.clear()
         self._retrieve()
 
 
-    def _retrieve(self):
+    def _retrieve(self) -> None:
+        """
+        Determines whether settings are present in the system storage and based on that decides what to choose
+
+        :return: None
+        """
+
+        # It seems like QT or OS stores additional parameters unwanted for us (at least on macOS) so we isolate our
+        # storage using 'app' group
         self.persistentStorage.beginGroup('app')
 
-        if not self.persistentStorage.contains("settings"):
+        if not self.persistentStorage.contains('settings'):
             print("No settings, clear all, use default...")
-            # print(len(self.persistentStorage.allKeys()))
             self.persistentStorage.endGroup()
             self.persistentStorage.clear()
 
+            # update() is the inherited method of the dictionary to update its items. We assume that 'defaults' will not
+            # change but for a confidence we make a copy
+            self.update(copy.deepcopy(self.defaults))
             # self.save(self.defaults)
-            self.update(copy.deepcopy(self.defaults))  # we assume that 'defaults' will not change but for a confidence we make a copy
+
         else:
             print("Restore from NV-storage")
-            # print(len(self.persistentStorage.allKeys()))
-            self.update(self.persistentStorage.value("settings", type=dict))
+            self.update(self.persistentStorage.value('settings', type=dict))
             self.persistentStorage.endGroup()
 
 
-    def save(self, settings):
+    def save(self, settings: dict) -> None:
+        """
+        Push settings from the given dictionary to the persistent storage
+
+        :param settings: dictionary containing settings. Any subclass including this can be passed as well
+        :return: None
+        """
+
         print("Saving settings...")
         self.persistentStorage.beginGroup('app')
         self.persistentStorage.setValue('settings', copy.deepcopy(settings))
         self.persistentStorage.endGroup()
 
 
-    def __deepcopy__(self, memodict={}):
+    def __deepcopy__(self, memodict={}) -> dict:
+        """
+        As this class contains additional properties such as QSettings that we don't want to be copied we need to
+        override __deepcopy__ method
+
+        :param memodict: see deepcopy docs, not used in our case
+        :return: copied dictionary
+
+        """
+
+        # inner instruction makes temporary shallow copy of the dictionary and outer is performing actual deep-copying
         return copy.deepcopy(dict(self))
 
 
 
-
 class SettingsWindow(QWidget):
+    """
+    Window to edit some parameters of network connection, visual appearance and so on. Actual saving is performing
+    during the close event
+    """
 
     def __init__(self, app, parent=None):
+        """
+        SettingsWindow constructor
+
+        :param app: parent MainApplication instance
+        :param parent: [optional] parent class
+        """
 
         super(SettingsWindow, self).__init__(parent)
 
         self.app = app
 
-        self.setWindowTitle("Settings")
+        self.setWindowTitle('Settings')
         self.setWindowIcon(QIcon('img/settings.png'))
+
 
         networkGroupBox = QGroupBox("Controller connection")
         networkVBox = QVBoxLayout()
@@ -109,13 +157,13 @@ class SettingsWindow(QWidget):
         themeHBox.addWidget(self.themeDarkRadioButton)
 
 
-        graphsGroupBox = QGroupBox("Graphics")
+        graphsGroupBox = QGroupBox('Graphics')
         graphsVBox = QVBoxLayout()
         graphsGroupBox.setLayout(graphsVBox)
 
         graphsHBox1 = QHBoxLayout()
         self.graphsUpdateIntervalSpinBox = QSpinBox()
-        self.graphsUpdateIntervalSpinBox.setSuffix(" ms")
+        self.graphsUpdateIntervalSpinBox.setSuffix(' ms')
         self.graphsUpdateIntervalSpinBox.setMinimum(1)
         self.graphsUpdateIntervalSpinBox.setMaximum(1e9)
         self.graphsUpdateIntervalSpinBox.setSingleStep(10)
@@ -149,7 +197,12 @@ class SettingsWindow(QWidget):
         grid.addWidget(resetSettingsButton)
 
 
-    def updateDisplayingValues(self):
+    def updateDisplayingValues(self) -> None:
+        """
+
+        :return: None
+        """
+
         self.ipLineEdit.setText(self.app.settings['network']['ip'])
         self.portLineEdit.setText(str(self.app.settings['network']['port']))
         self.connCheckIntervalSpinBox.setValue(self.app.settings['network']['checkInterval'])
@@ -162,16 +215,32 @@ class SettingsWindow(QWidget):
 
 
     def show(self):
+        """
+
+        :return: None
+        """
+
         self.settingsAtStart = copy.deepcopy(self.app.settings)
         self.updateDisplayingValues()
+
         super(SettingsWindow, self).show()
 
 
     def closeEvent(self, event):
+        """
+
+        :param event: QT event
+        :return: None
+        """
+
         self.saveSettings()
 
 
-    def saveSettings(self):
+    def saveSettings(self) -> None:
+        """
+
+        :return: None
+        """
 
         errors = []
 
@@ -202,22 +271,24 @@ class SettingsWindow(QWidget):
             print("settings are same as default")
             self.resetSettings()
             miscgraphics.MessageWindow("Settings have been reset to their defaults. "
-                               "Please restart the application to take effects", status='Info')
+                                       "Please restart the application to take effects", status='Info')
             return
         else:
             self.app.settings.save(self.app.settings)
             if errors:
-                miscgraphics.MessageWindow("There were errors during these parameters saving:\n\n\t" + "\n\t".join(errors) +
-                                   "\n\nPlease check input data", status='Error')
+                miscgraphics.MessageWindow("There were errors during these parameters saving:\n\n\t" +
+                                           "\n\t".join(errors) + "\n\nPlease check input data", status='Error')
             else:
-                miscgraphics.MessageWindow("Parameters are successfully saved. Please restart the application to take effects",
-                              status='Info')
+                miscgraphics.MessageWindow("Parameters are successfully saved. Please restart the application to take "
+                                           "effects", status='Info')
 
 
-    def resetSettings(self):
+    def resetSettings(self) -> None:
+        """
+
+        :return: None
+        """
+
         self.app.settings.persistentStorage.clear()
         self.app.settings.update(copy.deepcopy(self.app.settings.defaults))
         self.updateDisplayingValues()
-        # self.app.settings.save(self.app.settings.defaults)
-        # MessageWindow(text="Settings have been reset to their defaults. Please restart the application to take effects", type='Info')
-        # self.close()

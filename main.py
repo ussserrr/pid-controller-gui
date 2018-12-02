@@ -313,62 +313,52 @@ class CentralWidget(QWidget):
         """
         CentralWidget constructor
 
-        :param app: parent QApplication
+        :param app: parent MainApplication
         :param parent: [optional] parent class
         """
 
         super(CentralWidget, self).__init__(parent)
 
-        self.app = app
+        self.errorsSettingsWindow = errorssettings.ErrorsSettingsWindow(app=app)
 
-        self.contValGroupBoxes = {
-            'setpoint': miscgraphics.ValueGroupBox(
-                                       'setpoint', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn),
-            'kP': miscgraphics.ValueGroupBox('kP', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn),
-            'kI': miscgraphics.ValueGroupBox('kI', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn),
-            'kD': miscgraphics.ValueGroupBox('kD', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn)
-        }
-
-        self.errorsSettingsWindow = errorssettings.ErrorsSettingsWindow(app)
+        self.contValGroupBoxes = [
+            miscgraphics.ValueGroupBox('setpoint', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn),
+            miscgraphics.ValueGroupBox('kP', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn),
+            miscgraphics.ValueGroupBox('kI', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn),
+            miscgraphics.ValueGroupBox('kD', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn)
+        ]
 
         self.graphs = graphs.CustomGraphicsLayoutWidget(
-            nPoints=app.settings['graphs']['numberOfPoints'],
+            names=(app.settings['pid']['processVariable']['name'],
+                   app.settings['pid']['controllerOutput']['name']),
+            numPoints=app.settings['graphs']['numberOfPoints'],
             interval=app.settings['graphs']['updateInterval'],
-            procVarRange=(app.settings['pid']['processVariable']['limits']['min'],
-                          app.settings['pid']['processVariable']['limits']['max']),
-            contOutRange=(app.settings['pid']['controllerOutput']['limits']['min'],
-                          app.settings['pid']['controllerOutput']['limits']['max']),
-            controlPipe=None if self.app.isOfflineMode else self.app.conn.input_thread_control_pipe_main,
-            streamPipeRX=None if self.app.isOfflineMode else self.app.conn.stream.pipe_rx,
+            ranges=((app.settings['pid']['processVariable']['limits']['min'],
+                     app.settings['pid']['processVariable']['limits']['max']),
+                    (app.settings['pid']['controllerOutput']['limits']['min'],
+                     app.settings['pid']['controllerOutput']['limits']['max'])),
+            units=(app.settings['pid']['processVariable']['unit'],
+                   app.settings['pid']['controllerOutput']['unit']),
+            controlPipe=None if app.isOfflineMode else app.conn.input_thread_control_pipe_main,
+            streamPipeRX=None if app.isOfflineMode else app.conn.stream.pipe_rx,
             theme=app.settings['appearance']['theme'],
         )
-
-        self.graphs.procVarAvrgLabel.setToolTip("Average Process Variable value of last "
-                                                f"{self.graphs.procVarAvrgLabel.averageTime:.2f}s")
-        self.graphs.contOutAvrgLabel.setToolTip("Average Controller Output value of last "
-                                                f"{self.graphs.contOutAvrgLabel.averageTime:.2f}s")
 
         grid = QGridLayout()
         self.setLayout(grid)
 
         # TODO: draw a scheme of this grid in documentation
         # https://stackoverflow.com/questions/5909873/how-can-i-pretty-print-ascii-tables-with-python
-        grid.addWidget(self.contValGroupBoxes['setpoint'], 0, 0, 3, 2)
-        grid.addWidget(self.contValGroupBoxes['kP'], 3, 0, 3, 2)
-        grid.addWidget(self.contValGroupBoxes['kI'], 6, 0, 3, 2)
-        grid.addWidget(self.contValGroupBoxes['kD'], 9, 0, 3, 2)
+        for groupBox, y in zip(self.contValGroupBoxes.values(), [0,3,6,9]):
+            grid.addWidget(groupBox, y, 0, 3, 2)
+
+        for averageLabel, name, y in zip(self.graphs.averageLabels, self.graphs.names, [12,13]):
+            hBox = QHBoxLayout()
+            hBox.addWidget(QLabel(name))
+            hBox.addWidget(averageLabel, alignment=Qt.AlignLeft)
+            grid.addLayout(hBox, y, 0, 1, 2)
 
         grid.addWidget(self.graphs, 0, 2, 14, 4)
-
-        procVarAvrgHBox = QHBoxLayout()
-        procVarAvrgHBox.addWidget(QLabel("Process Variable:"))
-        procVarAvrgHBox.addWidget(self.graphs.procVarAvrgLabel, alignment=Qt.AlignLeft)
-        grid.addLayout(procVarAvrgHBox, 12, 0, 1, 2)
-
-        contOutAvrgHBox = QHBoxLayout()
-        contOutAvrgHBox.addWidget(QLabel("Controller Output:"))
-        contOutAvrgHBox.addWidget(self.graphs.contOutAvrgLabel, alignment=Qt.AlignLeft)
-        grid.addLayout(contOutAvrgHBox, 13, 0, 1, 2)
 
 
     def refreshContValues(self) -> None:
@@ -396,7 +386,7 @@ class MainWindow(QMainWindow):
         """
         MainWindow constructor
 
-        :param app: parent QApplication
+        :param app: parent MainApplication
         :param parent: [optional] parent class
         """
 
@@ -419,16 +409,16 @@ class MainWindow(QMainWindow):
         exitAction.setStatusTip("[Ctrl+Q] Exit application")
         exitAction.triggered.connect(self.app.quit)
 
-        infoAction = QAction(QIcon('img/info.png'), 'Info', self)
+        infoAction = QAction(QIcon('img/info.png'), 'Info', self)  # see about.py
         infoAction.setShortcut('Ctrl+I')
         infoAction.setStatusTip("[Ctrl+I] Application Info & About")
         self.aboutWindow = about.AboutWindow(app)
         infoAction.triggered.connect(self.aboutWindow.show)
 
-        settingsAction = QAction(QIcon('img/settings.png'), 'Settings', self)
+        settingsAction = QAction(QIcon('img/settings.png'), 'Settings', self)  # see settings.py
         settingsAction.setShortcut('Ctrl+P')
         settingsAction.setStatusTip("[Ctrl+P] Application Settings")
-        self.settingsWindow = settings.SettingsWindow(app)
+        self.settingsWindow = settings.SettingsWindow(app=app)
         settingsAction.triggered.connect(self.settingsWindow.show)
 
         appToolbar = self.addToolBar('app')
@@ -440,7 +430,7 @@ class MainWindow(QMainWindow):
         #
         # Controller Toolbar section
         #
-        errorsLimitsAction = QAction(QIcon('img/set_errors.png'), 'Errors limits', self)
+        errorsLimitsAction = QAction(QIcon('img/set_errors.png'), 'Errors limits', self)  # see errorssettings.py
         errorsLimitsAction.setShortcut('E')
         errorsLimitsAction.setStatusTip("[E] Set values of errors limits")
         errorsLimitsAction.triggered.connect(self.centralWidget.errorsSettingsWindow.show)
@@ -631,6 +621,7 @@ class MainApplication(QApplication):
 
         self.settings = settings.Settings(defaults='defaultSettings.json')  # settings [customized] dictionary
 
+        # TODO: add logging maybe
 
         if self.settings['appearance']['theme'] == 'dark':
             # TODO: warns itself as a deprecated method though no suitable alternative has been suggested
@@ -743,7 +734,7 @@ class MainApplication(QApplication):
 
 if __name__ == '__main__':
     """
-    Entry point
+    Main entry point
     """
 
     QCoreApplication.setOrganizationName("Andrey Chufyrev")
