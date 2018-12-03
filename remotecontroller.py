@@ -596,7 +596,10 @@ class RemoteController:
 
         for key, value in snapshot.items():
             if key != 'date':  # snapshot has an accessory 'date' key
-                self.write(key, value)
+                if isinstance(value, list):
+                    self.write(key, *value)
+                else:
+                    self.write(key, value)
 
 
     def save_to_eeprom(self) -> int:

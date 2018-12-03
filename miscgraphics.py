@@ -127,7 +127,7 @@ class ValueGroupBox(QGroupBox):
     refresh PicButton to explicitly update it and a QLineEdit with an associated QPushButton to set a new value.
     """
 
-    def __init__(self, label: str, float_fmt: str= '{:.3f}', conn: remotecontroller.RemoteController=None, parent=None):
+    def __init__(self, label: str, float_fmt: str='{:.3f}', conn: remotecontroller.RemoteController=None, parent=None):
         """
         ValueGroupBox constructor
 

@@ -119,7 +119,7 @@ class ErrorsSettingsWindow(QWidget):
         :return: None
         """
 
-        self.updateDisplayingValues('err_P_limits', 'err_I_limits')
+        # self.updateDisplayingValues('err_P_limits', 'err_I_limits')
 
         super(ErrorsSettingsWindow, self).show()
 
@@ -158,6 +158,7 @@ class ErrorsSettingsWindow(QWidget):
         """
 
         try:
+            # QDoubleValidator doesn't work in combine with explicitly set value
             valMin = float(self.lineEdits[what]['min'].text())
             valMax = float(self.lineEdits[what]['max'].text())
         except ValueError:  # user enters not valid number or NaN
