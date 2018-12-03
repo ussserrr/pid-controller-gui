@@ -127,12 +127,12 @@ class ValueGroupBox(QGroupBox):
     refresh PicButton to explicitly update it and a QLineEdit with an associated QPushButton to set a new value.
     """
 
-    def __init__(self, label: str, float_fmt: str= '{:.3f}', controller: remotecontroller.RemoteController=None, parent=None):
+    def __init__(self, label: str, float_fmt: str= '{:.3f}', conn: remotecontroller.RemoteController=None, parent=None):
         """
         ValueGroupBox constructor
 
         :param label: name of the GroupBox
-        :param controller: RemoteController instance to connect to
+        :param conn: RemoteController instance to connect to
         :param parent: [optional] parent class
         """
 
@@ -141,7 +141,7 @@ class ValueGroupBox(QGroupBox):
         self.setTitle(f"{label.capitalize()} control")
 
         self.label = label
-        self.controller = controller
+        self.conn = conn
 
         # prepare a template string using another template string :)
         self.valLabelTemplate = string.Template(f"Current $label: <b>{float_fmt}</b>").safe_substitute(label=label)
@@ -182,8 +182,8 @@ class ValueGroupBox(QGroupBox):
         :return: None
         """
 
-        if self.controller is not None:
-            self.valLabel.setText(self.valLabelTemplate.format(self.controller.read(self.label)))
+        if self.conn is not None:
+            self.valLabel.setText(self.valLabelTemplate.format(self.conn.read(self.label)))
         else:
             self.valLabel.setText(self.valLabelTemplate.format(random.random()))
 
@@ -196,8 +196,8 @@ class ValueGroupBox(QGroupBox):
         """
 
         try:
-            if self.controller is not None:
-                self.controller.write(self.label, float(self.writeLine.text()))
+            if self.conn is not None:
+                self.conn.write(self.label, float(self.writeLine.text()))
         except ValueError:  # user enters not valid number or NaN
             pass
         self.writeLine.clear()

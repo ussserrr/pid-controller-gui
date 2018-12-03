@@ -322,10 +322,10 @@ class CentralWidget(QWidget):
         self.errorsSettingsWindow = errorssettings.ErrorsSettingsWindow(app=app)
 
         self.contValGroupBoxes = [
-            miscgraphics.ValueGroupBox('setpoint', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn),
-            miscgraphics.ValueGroupBox('kP', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn),
-            miscgraphics.ValueGroupBox('kI', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn),
-            miscgraphics.ValueGroupBox('kD', float_fmt=app.settings['pid']['valueFormat'], controller=app.conn)
+            miscgraphics.ValueGroupBox('setpoint', float_fmt=app.settings['pid']['valueFormat'], conn=app.conn),
+            miscgraphics.ValueGroupBox('kP', float_fmt=app.settings['pid']['valueFormat'], conn=app.conn),
+            miscgraphics.ValueGroupBox('kI', float_fmt=app.settings['pid']['valueFormat'], conn=app.conn),
+            miscgraphics.ValueGroupBox('kD', float_fmt=app.settings['pid']['valueFormat'], conn=app.conn)
         ]
 
         self.graphs = graphs.CustomGraphicsLayoutWidget(
