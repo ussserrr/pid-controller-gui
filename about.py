@@ -1,54 +1,152 @@
+"""
+Docstring
+"""
+
+import platform
+import sys
+
+from PyQt5.Qt import PYQT_VERSION_STR
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QWidget, QLayout, QVBoxLayout, QTabWidget, QSizePolicy, QLabel
-from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QTabWidget, QLabel, QTextBrowser, QPushButton, QStyle
+from PyQt5.QtGui import QIcon, QPixmap
 
 
-aboutInfo = "la"
+
+ABOUT_TEXT = """<!DOCTYPE html>
+<html>
+<body align="center">
+
+<h3>PID controller GUI</h3>
+
+<p>(C) Andrey Chufyrev</p>
+
+<p>2016-2018</p>
+
+<p>Repository: <a href="https://github.com/ussserrr/maglev-client">https://github.com/ussserrr/maglev-client</a></p>
+
+</body>
+</html>
+"""
+
+
+
+SYS_TEXT = f"""<!DOCTYPE html>
+<html>
+<body>
+
+<h2>Python</h2>
+<ul>
+  <li>{sys.version}</li>
+</ul>
+
+<h2>Platform</h2>
+<ul>
+  <li>{platform.platform(aliased=True)}</li>
+</ul>
+
+<h2>PyQt</h2>
+<ul>
+  <li>{PYQT_VERSION_STR}</li>
+</ul>
+
+<h2>PyQtGraph</h2>
+<ul>
+  <li><a href="https://github.com/pyqtgraph/pyqtgraph">https://github.com/pyqtgraph/pyqtgraph</a></li>
+</ul>
+
+<h2>QDarkStylesheet</h2>
+<ul>
+  <li><a href="https://github.com/ColinDuquesnoy/QDarkStyleSheet">https://github.com/ColinDuquesnoy/QDarkStyleSheet</a></li>
+</ul>
+
+<h2>Icons</h2>
+<ul>
+  <li>All icons belongs to their respective authors from <a href="https://www.flaticon.com">FlatIcon.com</a></li>
+</ul>
+
+</body>
+</html>
+"""
+
 
 
 class AboutWindow(QTabWidget):
     """
-
+    Some service information, credits
     """
 
-    def __init__(self, app, parent=None):
+    def __init__(self, parent=None):
         """
+        AboutWindow constructor
 
-        :param app:
-        :param parent:
+        :param app: parent MainApplication instance
+        :param parent: [optional] parent class
         """
 
         super(AboutWindow, self).__init__(parent)
 
-        self.app = app
-
-        self.setWindowTitle("Info & about")
-        self.setFixedSize(350, 300)
+        self.setWindowTitle("Info & About")
         self.setWindowIcon(QIcon('img/info.png'))
 
-        self.sysTab = QWidget()
-        self.aboutTab = QWidget()
-        self.addTab(self.sysTab, "PID-controller")
-        self.addTab(self.aboutTab, "About")
-        self.initSysTabUI()
-        self.initAboutTabUI()
+        # self.setFixedSize(350, 300)
 
-    def initSysTabUI(self):
-        layout = QVBoxLayout()
-        sysTabText = QLabel("IP-address of MCU: {}\nUDP-port: {}".format(self.app.settings['network']['ip'], self.app.settings['network']['port']))
-        sysTabText.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        sysTabText.setWordWrap(True)
-        sysTabText.setAlignment(Qt.AlignCenter)
-        layout.addWidget(sysTabText)
-        self.sysTab.setLayout(layout)
-        layout.setAlignment(Qt.AlignCenter)
+        self.aboutTab = QWidget()
+        self.sysTab = QWidget()
+
+        self.addTab(self.aboutTab, 'About')
+        self.addTab(self.sysTab, 'System')
+
+        self.initAboutTabUI()
+        self.initSysTabUI()
+
 
     def initAboutTabUI(self):
+
         layout = QVBoxLayout()
-        layout.setSizeConstraint(QLayout.SetMinimumSize)
         self.aboutTab.setLayout(layout)
-        aboutTabText = QLabel(aboutInfo)
-        aboutTabText.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        aboutTabText.setWordWrap(True)
-        layout.addWidget(aboutTabText)
-        layout.setAlignment(Qt.AlignCenter)
+
+        iconPixmap = QPixmap('img/icon.png').scaledToWidth(96, Qt.SmoothTransformation)
+        iconLabel = QLabel()
+        iconLabel.setPixmap(iconPixmap)
+        iconLabel.setAlignment(Qt.AlignCenter)
+
+        aboutTextBrowser = QTextBrowser()
+        aboutTextBrowser.setHtml(ABOUT_TEXT)
+        aboutTextBrowser.setOpenExternalLinks(True)
+
+        layout.addSpacing(40)
+        layout.addWidget(iconLabel, Qt.AlignCenter)
+        layout.addSpacing(40)
+        layout.addWidget(aboutTextBrowser)
+
+
+    def initSysTabUI(self):
+
+        layout = QVBoxLayout()
+        self.sysTab.setLayout(layout)
+
+        sysTextBrowser = QTextBrowser()
+        sysTextBrowser.setHtml(SYS_TEXT)
+        sysTextBrowser.setOpenExternalLinks(True)
+
+        aboutQtButton = QPushButton(QIcon(self.style().standardIcon(QStyle.SP_TitleBarMenuButton)),
+                                    'About QT')
+        aboutQtButton.clicked.connect(QApplication.instance().aboutQt)
+
+        layout.addWidget(sysTextBrowser)
+        layout.addWidget(aboutQtButton)
+
+
+if __name__ == '__main__':
+    """
+    Use this block for testing purposes (run the module as a standalone script)
+    """
+
+    from PyQt5.QtWidgets import QApplication, QWidget
+
+    app = QApplication(sys.argv)
+    aboutWindow = AboutWindow()
+
+    aboutWindow.show()
+
+    sys.exit(app.exec_())

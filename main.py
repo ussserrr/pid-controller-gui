@@ -412,7 +412,7 @@ class MainWindow(QMainWindow):
         infoAction = QAction(QIcon('img/info.png'), 'Info', self)  # see about.py
         infoAction.setShortcut('Ctrl+I')
         infoAction.setStatusTip("[Ctrl+I] Application Info & About")
-        self.aboutWindow = about.AboutWindow(app)
+        self.aboutWindow = about.AboutWindow()
         infoAction.triggered.connect(self.aboutWindow.show)
 
         settingsAction = QAction(QIcon('img/settings.png'), 'Settings', self)  # see settings.py
@@ -602,7 +602,6 @@ class MainApplication(QApplication):
     """
 
     # TODO: apply settings on-the-fly (not requiring a reboot)
-    # TODO: add more ToolTips and StatusTips for elements
     # TODO: list all used packets in 'about' (qdarkstyle, icons, etc.)
 
 
