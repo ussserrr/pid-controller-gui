@@ -7,9 +7,9 @@ import json
 import ipaddress
 
 from PyQt5.QtCore import QSettings
+from PyQt5.QtGui import QIcon, QIntValidator
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QGroupBox, QRadioButton, QLabel,\
                             QPushButton, QLineEdit, QSpinBox, QButtonGroup
-from PyQt5.QtGui import QIcon, QIntValidator
 
 # local imports
 import miscgraphics
@@ -115,7 +115,9 @@ class SettingsWindow(QWidget):
         self.setWindowTitle('Settings')
         self.setWindowIcon(QIcon('img/settings.png'))
 
-
+        #
+        # Network section
+        #
         networkGroupBox = QGroupBox("Controller connection")
         networkVBox = QVBoxLayout()
         networkGroupBox.setLayout(networkVBox)
@@ -142,7 +144,9 @@ class SettingsWindow(QWidget):
         networkVBox.addLayout(networkHBox1)
         networkVBox.addLayout(networkHBox2)
 
-
+        #
+        # Appearance section
+        #
         themeGroupBox = QGroupBox('Theme')
         themeHBox = QHBoxLayout()
         themeGroupBox.setLayout(themeHBox)
@@ -156,7 +160,9 @@ class SettingsWindow(QWidget):
         themeHBox.addWidget(self.themeLightRadioButton)
         themeHBox.addWidget(self.themeDarkRadioButton)
 
-
+        #
+        # Graphs section
+        #
         graphsGroupBox = QGroupBox('Graphics')
         graphsVBox = QVBoxLayout()
         graphsGroupBox.setLayout(graphsVBox)
@@ -181,14 +187,14 @@ class SettingsWindow(QWidget):
         graphsVBox.addLayout(graphsHBox1)
         graphsVBox.addLayout(graphsHBox2)
 
-
+        # reset to defaults
         resetSettingsButton = QPushButton("Reset to defaults")
         resetSettingsButton.clicked.connect(self.resetSettings)
 
-
+        # get all values for the first time
         self.updateDisplayingValues()
 
-
+        # widget layout - grid
         grid = QGridLayout()
         self.setLayout(grid)
         grid.addWidget(themeGroupBox)
@@ -199,6 +205,7 @@ class SettingsWindow(QWidget):
 
     def updateDisplayingValues(self) -> None:
         """
+        Using global app settings class property to set all widgets to its values
 
         :return: None
         """
@@ -216,6 +223,7 @@ class SettingsWindow(QWidget):
 
     def show(self):
         """
+        Overridden method to refresh all values on each window show
 
         :return: None
         """
@@ -228,16 +236,19 @@ class SettingsWindow(QWidget):
 
     def closeEvent(self, event):
         """
+        Save settings on each window close. Before that we can edit parameters as we want to
 
         :param event: QT event
         :return: None
         """
 
         self.saveSettings()
+        super(SettingsWindow, self).closeEvent(event)
 
 
     def saveSettings(self) -> None:
         """
+        Parse, check and save the settings into the persistent storage associated with a self.app.settings instance
 
         :return: None
         """
@@ -285,6 +296,7 @@ class SettingsWindow(QWidget):
 
     def resetSettings(self) -> None:
         """
+        Recover settings to their default values
 
         :return: None
         """

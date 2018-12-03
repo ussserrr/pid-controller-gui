@@ -5,10 +5,10 @@ Docstring
 import random
 import string
 
+from PyQt5.QtCore import QSize
 from PyQt5.QtGui import QPainter, QIcon, QPixmap, QDoubleValidator
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QMessageBox, QAbstractButton, QPushButton, QGroupBox, QLabel,\
                             QLineEdit
-from PyQt5.QtCore import QSize
 
 # local imports
 import remotecontroller
