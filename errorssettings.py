@@ -53,10 +53,6 @@ class ErrorsSettingsWindow(QWidget):
             }
         }
 
-        for d in self.lineEdits.values():
-            for lineEdit in d.values():
-                lineEdit.setValidator(QDoubleValidator())
-
 
         for key, name in (('err_P_limits', "P error limits"),
                           ('err_I_limits', "I error limits")):
@@ -119,7 +115,7 @@ class ErrorsSettingsWindow(QWidget):
         :return: None
         """
 
-        # self.updateDisplayingValues('err_P_limits', 'err_I_limits')
+        self.updateDisplayingValues('err_P_limits', 'err_I_limits')
 
         super(ErrorsSettingsWindow, self).show()
 
