@@ -1,5 +1,12 @@
 """
-Docstring
+about.py - holds packages information, credits and so on
+
+
+ABOUT_TEXT:
+    HTML-formatted 'about' text
+
+SYS_TEXT:
+    HTML-formatted 'system' text
 """
 
 import platform
@@ -9,6 +16,10 @@ from PyQt5.Qt import PYQT_VERSION_STR
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QTabWidget, QLabel, QTextBrowser, QPushButton, QStyle
 from PyQt5.QtGui import QIcon, QPixmap
+
+
+
+LOGO_SIZE = 96
 
 
 
@@ -56,7 +67,8 @@ SYS_TEXT = f"""<!DOCTYPE html>
 
 <h2>QDarkStylesheet</h2>
 <ul>
-  <li><a href="https://github.com/ColinDuquesnoy/QDarkStyleSheet">https://github.com/ColinDuquesnoy/QDarkStyleSheet</a></li>
+  <li><a href="https://github.com/ColinDuquesnoy/QDarkStyleSheet">
+  https://github.com/ColinDuquesnoy/QDarkStyleSheet</a></li>
 </ul>
 
 <h2>Icons</h2>
@@ -72,14 +84,13 @@ SYS_TEXT = f"""<!DOCTYPE html>
 
 class AboutWindow(QTabWidget):
     """
-    Some service information, credits
+    Some service information, credits using html documents
     """
 
     def __init__(self, parent=None):
         """
         AboutWindow constructor
 
-        :param app: parent MainApplication instance
         :param parent: [optional] parent class
         """
 
@@ -87,8 +98,6 @@ class AboutWindow(QTabWidget):
 
         self.setWindowTitle("Info & About")
         self.setWindowIcon(QIcon('img/info.png'))
-
-        # self.setFixedSize(350, 300)
 
         self.aboutTab = QWidget()
         self.sysTab = QWidget()
@@ -100,17 +109,23 @@ class AboutWindow(QTabWidget):
         self.initSysTabUI()
 
 
-    def initAboutTabUI(self):
+    def initAboutTabUI(self) -> None:
+        """
+        Initialize 'About' tab
+
+        :return: None
+        """
 
         layout = QVBoxLayout()
         self.aboutTab.setLayout(layout)
 
-        iconPixmap = QPixmap('img/icon.png').scaledToWidth(96, Qt.SmoothTransformation)
-        iconLabel = QLabel()
+        # prepare logo view: create pixmap, scale it using nicer method
+        iconPixmap = QPixmap('img/icon.png').scaledToWidth(LOGO_SIZE, Qt.SmoothTransformation)
+        iconLabel = QLabel()  # QLabel is used to store the pixmap
         iconLabel.setPixmap(iconPixmap)
         iconLabel.setAlignment(Qt.AlignCenter)
 
-        aboutTextBrowser = QTextBrowser()
+        aboutTextBrowser = QTextBrowser()  # read-only text holder with rich text support
         aboutTextBrowser.setHtml(ABOUT_TEXT)
         aboutTextBrowser.setOpenExternalLinks(True)
 
@@ -120,7 +135,12 @@ class AboutWindow(QTabWidget):
         layout.addWidget(aboutTextBrowser)
 
 
-    def initSysTabUI(self):
+    def initSysTabUI(self) -> None:
+        """
+        Initialize 'System' tab
+
+        :return: None
+        """
 
         layout = QVBoxLayout()
         self.sysTab.setLayout(layout)
@@ -129,12 +149,12 @@ class AboutWindow(QTabWidget):
         sysTextBrowser.setHtml(SYS_TEXT)
         sysTextBrowser.setOpenExternalLinks(True)
 
-        aboutQtButton = QPushButton(QIcon(self.style().standardIcon(QStyle.SP_TitleBarMenuButton)),
-                                    'About QT')
+        aboutQtButton = QPushButton(QIcon(self.style().standardIcon(QStyle.SP_TitleBarMenuButton)), 'About QT')
         aboutQtButton.clicked.connect(QApplication.instance().aboutQt)
 
         layout.addWidget(sysTextBrowser)
         layout.addWidget(aboutQtButton)
+
 
 
 if __name__ == '__main__':
@@ -142,11 +162,9 @@ if __name__ == '__main__':
     Use this block for testing purposes (run the module as a standalone script)
     """
 
-    from PyQt5.QtWidgets import QApplication, QWidget
-
     app = QApplication(sys.argv)
-    aboutWindow = AboutWindow()
 
+    aboutWindow = AboutWindow()
     aboutWindow.show()
 
     sys.exit(app.exec_())

@@ -19,4 +19,6 @@ RemoteController
     |
     +---- Signal(QObject)
 ```
-- [ ] Pack response, request, result etc. dictionaries into corresponding classes
+- [ ] Pack response, request, result etc. into corresponding classes, not dictionaries
+- [ ] Add logging to easily trace the execution flow
+- [ ] Apply settings on-the-fly (not requiring a reboot)

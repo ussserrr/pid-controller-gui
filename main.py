@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 import sys
 import os
 
@@ -283,12 +284,27 @@ if __name__ == '__main__':
 
     sys.exit(app.exec_())
 =======
+=======
+"""
+main.py - Main script
+
+
+MainApplication
+    customized QApplication which encapsulates settings, controller remote connection
+
+MainWindow
+    QMainWindow subclass for tools and status bars, some actions and signals/slots
+
+CentralWidget
+    remaining UI elements such as PID values GroupBox'es, live graphs
+"""
+
+>>>>>>> 953b27d... finalaizing 1
 import sys
 
-from PyQt5.QtCore import Qt, QCoreApplication, QT_VERSION_STR, QTimer, pyqtSlot, pyqtSignal
+from PyQt5.QtCore import Qt, QCoreApplication, QTimer, pyqtSlot, pyqtSignal
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QGridLayout, QHBoxLayout, QLabel, QAction
 from PyQt5.QtGui import QIcon
-from PyQt5.Qt import PYQT_VERSION_STR
 
 import qdarkstyle
 
@@ -319,7 +335,11 @@ class CentralWidget(QWidget):
 
         super(CentralWidget, self).__init__(parent)
 
-        self.errorsSettingsWindow = errorssettings.ErrorsSettingsWindow(app=app)
+        self.app = app
+
+        grid = QGridLayout()
+        self.setLayout(grid)
+
 
         self.contValGroupBoxes = [
             miscgraphics.ValueGroupBox('setpoint', float_fmt=app.settings['pid']['valueFormat'], conn=app.conn),
@@ -327,6 +347,12 @@ class CentralWidget(QWidget):
             miscgraphics.ValueGroupBox('kI', float_fmt=app.settings['pid']['valueFormat'], conn=app.conn),
             miscgraphics.ValueGroupBox('kD', float_fmt=app.settings['pid']['valueFormat'], conn=app.conn)
         ]
+
+        # TODO: draw a scheme of this grid in documentation
+        # https://stackoverflow.com/questions/5909873/how-can-i-pretty-print-ascii-tables-with-python
+        for groupBox, yPosition in zip(self.contValGroupBoxes, [0,3,6,9]):
+            grid.addWidget(groupBox, yPosition, 0, 3, 2)
+
 
         self.graphs = graphs.CustomGraphicsLayoutWidget(
             names=(app.settings['pid']['processVariable']['name'],
@@ -344,24 +370,16 @@ class CentralWidget(QWidget):
             theme=app.settings['appearance']['theme'],
         )
 
-        grid = QGridLayout()
-        self.setLayout(grid)
-
-        # TODO: draw a scheme of this grid in documentation
-        # https://stackoverflow.com/questions/5909873/how-can-i-pretty-print-ascii-tables-with-python
-        for groupBox, y in zip(self.contValGroupBoxes, [0,3,6,9]):
-            grid.addWidget(groupBox, y, 0, 3, 2)
-
-        for averageLabel, name, y in zip(self.graphs.averageLabels, self.graphs.names, [12,13]):
+        for averageLabel, name, yPosition in zip(self.graphs.averageLabels, self.graphs.names, [12,13]):
             hBox = QHBoxLayout()
             hBox.addWidget(QLabel(name))
             hBox.addWidget(averageLabel, alignment=Qt.AlignLeft)
-            grid.addLayout(hBox, y, 0, 1, 2)
+            grid.addLayout(hBox, yPosition, 0, 1, 2)
 
         grid.addWidget(self.graphs, 0, 2, 14, 4)
 
 
-    def refreshContValues(self) -> None:
+    def updateDisplayingValues(self) -> None:
         """
         Retrieve all controller parameters and update corresponding GUI elements. Useful to apply after connection's
         breaks. This does not affect values saved during the app launch (RemoteController.save_current_values())
@@ -372,7 +390,7 @@ class CentralWidget(QWidget):
         for groupBox in self.contValGroupBoxes:
             groupBox.refreshVal()
 
-        self.errorsSettingsWindow.updateDisplayingValues('err_P_limits', 'err_I_limits')
+        self.app.mainWindow.errorsSettingsWindow.updateDisplayingValues('err_P_limits', 'err_I_limits')
 
 
 
@@ -398,9 +416,6 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QIcon('img/icon.png'))
 
 
-        self.centralWidget = CentralWidget(app=app)
-        self.setCentralWidget(self.centralWidget)
-
         #
         # App Toolbar section
         #
@@ -409,11 +424,11 @@ class MainWindow(QMainWindow):
         exitAction.setStatusTip("[Ctrl+Q] Exit application")
         exitAction.triggered.connect(self.app.quit)
 
-        infoAction = QAction(QIcon('img/info.png'), 'Info', self)  # see about.py
-        infoAction.setShortcut('Ctrl+I')
-        infoAction.setStatusTip("[Ctrl+I] Application Info & About")
+        aboutAction = QAction(QIcon('img/info.png'), 'About', self)  # see about.py
+        aboutAction.setShortcut('Ctrl+I')
+        aboutAction.setStatusTip("[Ctrl+I] Application Info & About")
         self.aboutWindow = about.AboutWindow()
-        infoAction.triggered.connect(self.aboutWindow.show)
+        aboutAction.triggered.connect(self.aboutWindow.show)
 
         settingsAction = QAction(QIcon('img/settings.png'), 'Settings', self)  # see settings.py
         settingsAction.setShortcut('Ctrl+P')
@@ -421,19 +436,20 @@ class MainWindow(QMainWindow):
         self.settingsWindow = settings.SettingsWindow(app=app)
         settingsAction.triggered.connect(self.settingsWindow.show)
 
-        appToolbar = self.addToolBar('app')
+        appToolbar = self.addToolBar('app')  # internal name
         appToolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         appToolbar.addAction(exitAction)
-        appToolbar.addAction(infoAction)
+        appToolbar.addAction(aboutAction)
         appToolbar.addAction(settingsAction)
 
         #
         # Controller Toolbar section
         #
-        errorsLimitsAction = QAction(QIcon('img/set_errors.png'), 'Errors limits', self)  # see errorssettings.py
-        errorsLimitsAction.setShortcut('E')
-        errorsLimitsAction.setStatusTip("[E] Set values of errors limits")
-        errorsLimitsAction.triggered.connect(self.centralWidget.errorsSettingsWindow.show)
+        errorsSettingsAction = QAction(QIcon('img/set_errors.png'), 'Errors limits', self)  # see errorssettings.py
+        errorsSettingsAction.setShortcut('E')
+        errorsSettingsAction.setStatusTip("[E] Set values of errors limits")
+        self.errorsSettingsWindow = errorssettings.ErrorsSettingsWindow(app=app)
+        errorsSettingsAction.triggered.connect(self.errorsSettingsWindow.show)
 
         restoreValuesAction = QAction(QIcon('img/restore.png'), 'Restore controller', self)
         restoreValuesAction.setShortcut('R')
@@ -445,10 +461,9 @@ class MainWindow(QMainWindow):
         saveToEEPROMAction.setStatusTip("[S] Save current controller configuration to EEPROM")
         saveToEEPROMAction.triggered.connect(self.saveToEEPROM)
 
-        # TODO: rename 'cont' to something more distinguishable from 'conn'
         contToolbar = self.addToolBar('controller')  # internal name
         contToolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        contToolbar.addAction(errorsLimitsAction)
+        contToolbar.addAction(errorsSettingsAction)
         contToolbar.addAction(restoreValuesAction)
         contToolbar.addAction(saveToEEPROMAction)
 
@@ -460,7 +475,7 @@ class MainWindow(QMainWindow):
         playpauseAction.setStatusTip("[P] Play/pause graphs")
         playpauseAction.triggered.connect(self.playpauseGraphs)
 
-        graphsToolbar = self.addToolBar('graphs')
+        graphsToolbar = self.addToolBar('graphs')  # internal name
         graphsToolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         graphsToolbar.addAction(playpauseAction)
         self.playpauseButton = graphsToolbar.widgetForAction(playpauseAction)
@@ -470,13 +485,16 @@ class MainWindow(QMainWindow):
 
 
         mainMenu = self.menuBar().addMenu('&Menu')
-        mainMenu.addAction(exitAction)
-        mainMenu.addAction(infoAction)
+        mainMenu.addAction(aboutAction)
         mainMenu.addAction(settingsAction)
+        mainMenu.addAction(exitAction)
 
 
         if self.app.isOfflineMode:
             self.statusBar().addWidget(QLabel("<font color='red'>Offline mode</font>"))
+
+        self.centralWidget = CentralWidget(app=app)
+        self.setCentralWidget(self.centralWidget)
 
 
     def playpauseGraphs(self) -> None:
@@ -502,7 +520,7 @@ class MainWindow(QMainWindow):
         """
 
         self.app.conn.restore_values(self.app.conn.snapshots[0])  # currently save and use only one snapshot
-        self.centralWidget.refreshContValues()
+        self.centralWidget.updateDisplayingValues()
 
 
     def saveToEEPROM(self) -> None:
@@ -514,7 +532,7 @@ class MainWindow(QMainWindow):
 
         if self.app.conn.save_to_eeprom() == remotecontroller.result['ok']:
             miscgraphics.MessageWindow("Successfully saved", status='Info')
-            self.app.mainWindow.centralWidget.refreshContValues()
+            self.centralWidget.updateDisplayingValues()
         else:
             miscgraphics.MessageWindow("Saving failed!", status='Error')
 
@@ -601,9 +619,6 @@ class MainApplication(QApplication):
     Customized QApplication - entry point of the whole program
     """
 
-    # TODO: apply settings on-the-fly (not requiring a reboot)
-    # TODO: list all used packets in 'about' (qdarkstyle, icons, etc.)
-
 
     connLostSignal = pyqtSignal()  # must be part of the class definition and cannot be dynamically added after
 
@@ -620,18 +635,18 @@ class MainApplication(QApplication):
 
         self.settings = settings.Settings(defaults='defaultSettings.json')  # settings [customized] dictionary
 
-        # TODO: add logging maybe
-
         if self.settings['appearance']['theme'] == 'dark':
             # TODO: warns itself as a deprecated method though no suitable alternative has been suggested
             self.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
 
 
+        # Create a handler function for connection breaks (for example, when a break is occur during the read of some
+        # coefficient from the controller). We need to setup it early here to proper connection initialization process
+        self.connLostSignal.connect(self.connLostHandler)
         # show this when the connection is broken
         self.connLostStatusBarLabel = QLabel("<font color='red'>Connection was lost. Trying to reconnect...</font>")
-        # Also create a handler function for connection breaks (for example, when break is occur during the read of
-        # some coefficient from the controller)
-        self.connLostSignal.connect(self.connLostHandler)
+        # check connection timer, set it when we will know status of the connection
+        self.connCheckTimer = QTimer()
 
         self.isOfflineMode = False
 
@@ -653,7 +668,6 @@ class MainApplication(QApplication):
         else:
             # If connection is present (so no demo mode is needed) then create the timer for connection checking. It
             # will start on MainWindow' show
-            self.connCheckTimer = QTimer()
             self.connCheckTimer.timeout.connect(self.connCheckTimerHandler)
 
         self.conn.save_current_values()
@@ -671,6 +685,9 @@ class MainApplication(QApplication):
 
         :return: None
         """
+
+        self.connLostSignal.disconnect(self.connLostHandler)
+        self.connCheckTimer.stop()
 
         self.conn.close()
 
@@ -693,7 +710,7 @@ class MainApplication(QApplication):
             if self.isOfflineMode:
                 self.isOfflineMode = False
                 print('Reconnected')
-                self.mainWindow.centralWidget.refreshContValues()
+                self.mainWindow.centralWidget.updateDisplayingValues()
                 self.mainWindow.statusBar().removeWidget(self.connLostStatusBarLabel)
                 self.mainWindow.statusBar().showMessage('Reconnected')
 
@@ -711,6 +728,7 @@ class MainApplication(QApplication):
             self.isOfflineMode = True
             print("Connection lost")
             try:
+                # TODO: notify children instead of such constructions (i.e. let emitted signals propagate)
                 if self.mainWindow.centralWidget.graphs.isRun:
                     self.mainWindow.playpauseGraphs()
                 self.mainWindow.statusBar().addWidget(self.connLostStatusBarLabel)
@@ -721,7 +739,7 @@ class MainApplication(QApplication):
             # read/write operations cannot be successfully performed due to small corresponding timeouts. Then, connLost
             # signal is emitting. Since the RemoteController initialization has not been complete MainWindow certainly
             # has not been instantiated yet and so we will catch this exception. We can simply ignore such case and just
-            # quietly mark the connection as offline without any notifications toward the user
+            # quietly mark the connection as offline without any notifications toward the user but we do
             except AttributeError:
                 print("Too small timeout")
                 miscgraphics.MessageWindow("It seems like the connection is present but specified read/write timeouts "

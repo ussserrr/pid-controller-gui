@@ -1,5 +1,15 @@
 """
-Docstring
+miscgraphics.py - some util widgets
+
+
+PicButton
+    custom button with 3 different appearances: for normal, when mouse is over it and pressed states
+
+MessageWindow
+    standalone window representing Info, Warning or Error with corresponding system icon and user text
+
+ValueGroupBox
+    QGroupBox widget centered around a single numerical variable
 """
 
 import random
@@ -231,6 +241,5 @@ if __name__ == '__main__':
     layout.addWidget(invokeMessageWindow)
 
     window.show()
-    app.aboutQt()
 
     sys.exit(app.exec_())

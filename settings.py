@@ -1,5 +1,12 @@
 """
-Docstring
+settings.py - way to settings managing, both internal and graphical
+
+
+Settings
+    dict subclass with the additional interface to QSettings for handling both run-time and non-volatile settings
+
+SettingsWindow
+    GUI to let a user edit the settings
 """
 
 import copy
@@ -18,7 +25,7 @@ import miscgraphics
 
 class Settings(dict):
     """
-    Easier way to manage different parameters. Briefly speaking it combines conventional dictionary with additional
+    Easier way to manage different parameters. Briefly speaking it combines conventional dictionary with the additional
     interface to QSettings via 'persistentStorage' property
     """
 
@@ -89,7 +96,8 @@ class Settings(dict):
 
         """
 
-        # inner instruction makes temporary shallow copy of the dictionary and outer is performing actual deep-copying
+        # inner instruction makes temporary shallow copy of the dictionary (without custom options) and outer is
+        # performing an actual deep-copying
         return copy.deepcopy(dict(self))
 
 

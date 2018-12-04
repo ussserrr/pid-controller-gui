@@ -396,7 +396,7 @@ class RemoteController:
         self._is_offline_mode = False
         self.cont_ip_port = (ip_addr, udp_port)
 
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # TODO: wrap sock on OSError everywhere
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.settimeout(0)  # explicitly set the non-blocking mode
 
         self.input_thread_control_pipe_main,\
