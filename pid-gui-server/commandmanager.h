@@ -1,9 +1,9 @@
 //
 //  commandmanager.h
-//  sever
+//  pid-gui-server
 //
-//  Created by Андрей Чуфырев on 18.11.2018.
-//  Copyright © 2018 Андрей Чуфырев. All rights reserved.
+//  Created by Andrey Chufyrev on 18.11.2018.
+//  Copyright © 2018 Andrey Chufyrev. All rights reserved.
 //
 
 #ifndef commandmanager_h
@@ -13,7 +13,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>  // for memset()
-// #include <time.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -34,13 +33,7 @@ extern struct sockaddr_in clientaddr;  // client address
 extern socklen_t clientlen;  // byte size of client's address
 
 // extern pthread_mutex_t sock_mutex;
-extern pthread_t pv_stream_thread_id;
-// extern volatile bool stream_run;
-// extern volatile bool stream_was_run;
-// extern int points_cnt;
-// #define STREAM_BUF_SIZE (sizeof(char)+2*sizeof(float))
-// extern float stream_values[2];
-
+extern pthread_t stream_thread_id;
 
 
 enum {
@@ -73,10 +66,6 @@ enum {
 };
 
 #define STREAM_PREFIX 0b00000001
-//enum {
-//    STREAM_STOP,
-//    STREAM_START
-//};
 
 
 typedef struct request {
@@ -93,7 +82,7 @@ typedef struct response {
 } response_t;
 
 
-//void _print_binary(unsigned char byte);
+// void _print_bin_hex(unsigned char byte);
 
 void error(char *msg);
 
@@ -102,7 +91,7 @@ void stream_start(void);
 void stream_stop(void);
 
 int process_request(unsigned char *request_buf);
-//int process_request(unsigned char *request_buf, unsigned char *response_buf);
+// int process_request(unsigned char *request_buf, unsigned char *response_buf);
 
 
 #endif /* commandmanager_h */

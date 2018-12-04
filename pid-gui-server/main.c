@@ -1,19 +1,21 @@
+//
+//  main.c
+//  pid-gui-server
+//
+//  Created by Andrey Chufyrev on 18.11.2018.
+//  Copyright © 2018 Andrey Chufyrev and authors of corresponding code. All rights reserved.
+//
+
 #include "commandmanager.h"
 
-//#include <stdio.h>
-//#include <unistd.h>
-//#include <stdlib.h>
-//#include <string.h>
 #include <netdb.h>
-//#include <sys/types.h>
-//#include <sys/socket.h>
 #include <sys/ioctl.h>
-//#include <netinet/in.h>
 #include <arpa/inet.h>
-//#include <pthread.h>
 
 
-#define BUF_SIZE (sizeof(char)+2*(sizeof(float)))
+#define REQUEST_RESPONSE_BUF_SIZE (sizeof(char)+2*(sizeof(float)))  // same size for both requests and responses
+#define SERVER_TASK_SLEEP_TIME_MS 5
+#define NO_MSG_TIMEOUT_SECONDS 15.0
 
 
 int sockfd;
@@ -38,22 +40,22 @@ int main() {
     // if (pthread_mutex_init(&sock_mutex, NULL) != 0)
     //     error("ERROR initializing mutex");
 
-    //    /*
-    //     * check command line arguments
-    //     * usage:
-    //     *     $ <program_name> <port>
-    //     */
+    // /*
+    //  * check command line arguments
+    //  * usage:
+    //  *     $ <program_name> <port>
+    //  */
     //
-    //    int main(int argc, char **argv) {
+    // int main(int argc, char **argv) {
     //
-    //        if (argc != 2) {
-    //            fprintf(stderr, "usage: %s <port>\n", argv[0]);
-    //            exit(1);
-    //        }
+    //     if (argc != 2) {
+    //         fprintf(stderr, "usage: %s <port>\n", argv[0]);
+    //         exit(1);
+    //     }
     //
-    //        int portno = atoi(argv[1]);
+    //     int portno = atoi(argv[1]);
     //
-    //        ...
+    //     ...
     //
     int portno = 1200;  // port to listen on
 
@@ -69,8 +71,7 @@ int main() {
      *  otherwise we have to wait about 20 secs. Eliminates "ERROR on binding: Address already in use" error.
      */
     int optval = 1;  // flag value for setsockopt
-    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
-               (const void *)&optval, sizeof(int));
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (const void *)&optval, sizeof(int));
 
     /*
      *  build the server's Internet address
@@ -89,26 +90,27 @@ int main() {
 
     clientlen = sizeof(clientaddr);  // byte size of client's address
 
-    unsigned char buf[BUF_SIZE];  // message buffer (both for receiving and sending)
-    memset(buf, 0, BUF_SIZE);  // explicitly reset the buffer
-    //    unsigned char response_buf[BUF_SIZE];
-    //    memset(response_buf, 0, BUF_SIZE);
+    unsigned char buf[REQUEST_RESPONSE_BUF_SIZE];  // message buffer (both for receiving and sending)
+    memset(buf, 0, REQUEST_RESPONSE_BUF_SIZE);  // explicitly reset the buffer
+    // unsigned char response_buf[REQUEST_RESPONSE_BUF_SIZE];
+    // memset(response_buf, 0, REQUEST_RESPONSE_BUF_SIZE);
 
-    int err = pthread_create(&pv_stream_thread_id, NULL, _stream_thread, NULL);
+    int err = pthread_create(&stream_thread_id, NULL, _stream_thread, NULL);
     if (err) {
         printf("%s\n", strerror(err));
         error("ERROR cannot create thread");
     }
 
     struct timespec server_response_delay = {
-        .tv_sec = 0,        /* seconds */
-        .tv_nsec = 5000000       /* nanoseconds */
+        /* seconds */      .tv_sec = 0,
+        /* nanoseconds */  .tv_nsec = SERVER_TASK_SLEEP_TIME_MS * 1000000
     };
 
     int no_msg_cnt = 0;
-    int const no_msg_cnt_warn = 15.0/(5000000.0/1000000000.0);
+    int const no_msg_cnt_warn = NO_MSG_TIMEOUT_SECONDS/(SERVER_TASK_SLEEP_TIME_MS/1000.0);
     bool is_stream_stop = false;
 
+    
     printf("Server listening on port %d\n", portno);
 
     /*
@@ -125,17 +127,17 @@ int main() {
 
         int data_len = 0;
         // pthread_mutex_lock(&sock_mutex);
-        ioctl(sockfd, FIONREAD, &data_len);  // poll for available data in socket
+        ioctl(sockfd, FIONREAD, &data_len);  // check for available data in socket
         if (data_len > 0) {
 
             /*
              *  recvfrom: receive a UDP datagram from a client
              *  n: message byte size
              */
-            ssize_t n = recvfrom(sockfd, buf, BUF_SIZE, 0, (struct sockaddr *)&clientaddr, &clientlen);
+            ssize_t n = recvfrom(sockfd, buf, REQUEST_RESPONSE_BUF_SIZE, 0, (struct sockaddr *)&clientaddr, &clientlen);
             if (n < 0)
                 error("ERROR in recvfrom");
-            //        printf("server received %zd bytes\n", n);
+            // printf("server received %zd bytes\n", n);
 
             /*
              *  gethostbyaddr: determine who sent the datagram
@@ -150,9 +152,9 @@ int main() {
                 error("ERROR on inet_ntoa");
 
             /*
-             *  print received data
+             *  print raw received data
              */
-            //        printf(buf);
+            // printf(buf);
 
             process_request(buf);
             //        process_request(buf, response_buf);
@@ -160,23 +162,26 @@ int main() {
             /*
              *  sendto: reply to the client
              */
-            n = sendto(sockfd, (const void *)buf, BUF_SIZE, 0, (struct sockaddr *)&clientaddr, clientlen);
-            //        n = sendto(sockfd, (const void *)response_buf, 1 + 2*sizeof(float), 0, (struct sockaddr *)&clientaddr, clientlen);
+            n = sendto(sockfd, (const void *)buf, REQUEST_RESPONSE_BUF_SIZE, 0, (struct sockaddr *)&clientaddr, clientlen);
             if (n < 0)
                 error("ERROR in sendto");
 
             // pthread_mutex_unlock(&sock_mutex);
-            memset(buf, 0, BUF_SIZE);  // reset the buffer
+            memset(buf, 0, REQUEST_RESPONSE_BUF_SIZE);  // reset the buffer
 
             no_msg_cnt = 0;
             is_stream_stop = false;
         }
+
+        // no available data
         else {
-            // no available data
             // pthread_mutex_unlock(&sock_mutex);
+
             if (!is_stream_stop)
                 no_msg_cnt++;
 
+            // sleep only if there were not available data, this should allows to reply on several continuous requests
+            // without any lag
             nanosleep(&server_response_delay, NULL);  // pause the main thread, then repeat
         }
     }
