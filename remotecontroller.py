@@ -1,5 +1,67 @@
 """
-Docstring
+remotecontroller.py - standalone interface to the remote PID controller with zero external dependencies
+
+
+const REMOTECONTROLLER_MSG_SIZE
+    message size (in bytes) to and from the remote controller (same for commands, values, stream messages)
+const FLOAT_SIZE
+    float type representation size (in bytes)
+const THREAD_INPUT_HANDLER_SLEEP_TIME
+    sleep time between incoming messages processing (in seconds)
+const CHECK_CONNECTION_TIMEOUT_FIRST_CHECK
+    timeout for the first check only (in seconds)
+const CHECK_CONNECTION_TIMEOUT_DEFAULT
+    timeout for all following checks (in seconds)
+const READ_WRITE_TIMEOUT_SYNCHRONOUS
+    though input listening thread is running asynchronously we retrieve and send non-stream data in a synchronous manner
+
+
+class _Response
+class _Request
+    C-type bitfields representing RemoteController response and request respectively. Make parsing and construction
+    easier
+
+class _ResponseByte
+    C-type union allows to represent the byte both as a value and as a bitfield specified earlier
+
+dict opcode
+dict var_cmd
+dict result
+int stream_prefix
+    instruction set constants in form of dictionary
+
+dict opcode_swapped
+dict var_cmd_swapped
+dict result_swapped
+    value-key swapped dictionaries for parsing and other tasks
+
+function _make_request
+function _parse_response
+    core functions to construct the request and parse the response respectively (additional checks are performed in
+    respective RemoteController methods)
+
+class Stream
+    class representing the stream from the RemoteController (e.g. plot data)
+
+enum InputThreadCommand
+    commands to control the input listening thread
+
+function _thread_input_handler
+    function to run as multiprocessing.Process target that receives all incoming data from the given socket and cast to
+    respective listeners from the main thread via pipes
+
+dict snapshot_template
+    PID values snapshot dictionary with attached datetime (template)
+
+exception _BaseExceptions
+exception RequestInvalidOperationException
+exception ResponseException
+exception ResponseMismatchException
+exception RequestKeyException
+    module's exceptions to raise in case of error
+
+class RemoteController
+    class combining defined earlier instruments in a convenient high-level interface
 """
 
 import copy
@@ -17,9 +79,9 @@ import random
 
 
 #
-# buffer size in bytes
+# buffers sizes in bytes
 #
-BUF_SIZE = 9
+REMOTECONTROLLER_MSG_SIZE = 9
 FLOAT_SIZE = 4
 
 #
@@ -64,9 +126,10 @@ opcode = {
     'read': 0,
     'write': 1
 }
-opcode_swapped = {v: k for k, v in opcode.items()}
+opcode_swapped = {value: key for key, value in opcode.items()}
 
 var_cmd = {
+    # variables
     'setpoint': 0b0100,
 
     'kP': 0b0101,
@@ -78,12 +141,13 @@ var_cmd = {
     'err_P_limits': 0b1001,
     'err_I_limits': 0b1010,
 
+    # commands - send them only in 'read' mode
     'stream_start': 0b0001,
     'stream_stop': 0b0000,
 
     'save_to_eeprom': 0b1011
 }
-var_cmd_swapped = {v: k for k, v in var_cmd.items()}
+var_cmd_swapped = {value: key for key, value in var_cmd.items()}
 
 # Use the same dictionary to parse controller' responses and as return value of functions so use it from other modules
 # for comparisons as well
@@ -91,9 +155,9 @@ result = {
     'ok': 0,
     'error': 1
 }
-result_swapped = {v: k for k, v in result.items()}
+result_swapped = {value: key for key, value in result.items()}
 
-stream_prefix = 0b00000001
+stream_prefix = 0b00000001  # every stream message should be prefaced with such byte
 
 
 
@@ -255,7 +319,7 @@ def _thread_input_handler(
             available = select.select([sock], [], [], 0)
             if available[0] == [sock]:
                 try:
-                    payload = sock.recv(BUF_SIZE)
+                    payload = sock.recv(REMOTECONTROLLER_MSG_SIZE)
                 except ConnectionResetError:  # meet on Windows
                     sys.exit()
 
@@ -585,13 +649,13 @@ class RemoteController:
         self.snapshots.append(snapshot)
 
 
-    def restore_values(self, snapshot: dict) -> None:
+    def restore_values(self, snapshot: dict) -> datetime.datetime:
         """
-        Gets PID values from the given snapshot dictionary and writes them into the controller. This does not write
+        Gets PID values from the given snapshot dictionary and writes them into the controller. This does not writes
         values to the EEPROM
 
         :param snapshot: special dictionary representing a single snapshot
-        :return: None
+        :return: datetime.datetime object of the restored snapshot
         """
 
         for key, value in snapshot.items():
@@ -600,6 +664,8 @@ class RemoteController:
                     self.write(key, *value)
                 else:
                     self.write(key, value)
+
+        return snapshot['date']
 
 
     def save_to_eeprom(self) -> int:

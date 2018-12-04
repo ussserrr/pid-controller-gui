@@ -519,7 +519,8 @@ class MainWindow(QMainWindow):
         :return: None
         """
 
-        self.app.conn.restore_values(self.app.conn.snapshots[0])  # currently save and use only one snapshot
+        date = self.app.conn.restore_values(self.app.conn.snapshots[0])  # currently save and use only one snapshot
+        print(f"Snapshot from {date} is restored")
         self.centralWidget.updateDisplayingValues()
 
 

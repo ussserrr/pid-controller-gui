@@ -1,13 +1,21 @@
 """
-Docstring
+errorssettings.py - PID components errors settings window
+
+
+STATUSBAR_MSG_TIMEOUT
+    time for which the statusbar' widget is displaying
+
+
+ErrorsSettingsWindow
+    QWidget window to control PID components errors (proportional and integral)
 """
 
 import functools
 
-from PyQt5.QtWidgets import QWidget, QGridLayout, QHBoxLayout, QVBoxLayout, QGroupBox, QLabel, QLineEdit, QPushButton, \
-                            QStatusBar
-from PyQt5.QtGui import QIcon, QDoubleValidator
 from PyQt5.QtCore import QTimer, QEvent
+from PyQt5.QtWidgets import QWidget, QGridLayout, QHBoxLayout, QVBoxLayout, QGroupBox, QLabel, QLineEdit, QPushButton, \
+    QStatusBar, QStyle
+from PyQt5.QtGui import QIcon
 
 # local imports
 import remotecontroller
@@ -54,10 +62,11 @@ class ErrorsSettingsWindow(QWidget):
         }
 
 
+        # we have 2 similar parameters but for integral error also declare reset button with the value tooltip
         for key, name in (('err_P_limits', "P error limits"),
                           ('err_I_limits', "I error limits")):
 
-            setButton = QPushButton('Set')
+            setButton = QPushButton(QIcon(self.style().standardIcon(QStyle.SP_DialogApplyButton)), 'Set')
             setButton.clicked.connect(functools.partial(self.setErrLimits, key))
 
             hBox = QHBoxLayout()
@@ -70,7 +79,8 @@ class ErrorsSettingsWindow(QWidget):
             groupBox = QGroupBox(name)
 
             if key == 'err_I_limits':
-                self.resetButton = QPushButton("Reset I error")
+                self.resetButton = QPushButton(QIcon(self.style().standardIcon(QStyle.SP_DialogCancelButton)),
+                                               "Reset I error")
                 self.resetButton.clicked.connect(self.resetIerr)
                 self.event(QEvent(QEvent.ToolTip))
 

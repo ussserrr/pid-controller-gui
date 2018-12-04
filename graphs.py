@@ -1,5 +1,20 @@
 """
-Docstring
+graphs.py - PyQtGraph fast widget to display live plots
+
+
+STREAM_PIPE_OVERFLOW_NUM_POINTS_THRESHOLD
+    number of stream points (vector with multiple values) representing difference between numbers of incoming and
+    plotted points that we consider an overflow
+
+STREAM_PIPE_OVERFLOW_CHECK_TIME_PERIOD_MS
+    overflow checking timer period in milliseconds
+
+STREAM_PIPE_OVERFLOW_WARNING_SIGN_DURATION
+    time for which an overflow warning sign will be displayed
+
+
+CustomGraphicsLayoutWidget
+    PyQtGraph fast widget to display live plots
 """
 
 import multiprocessing.connection

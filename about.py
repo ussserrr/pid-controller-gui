@@ -2,11 +2,15 @@
 about.py - holds packages information, credits and so on
 
 
-ABOUT_TEXT:
+ABOUT_TEXT
     HTML-formatted 'about' text
 
-SYS_TEXT:
+SYS_TEXT
     HTML-formatted 'system' text
+
+
+AboutWindow
+    QTabWidget window
 """
 
 import platform

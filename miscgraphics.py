@@ -17,8 +17,8 @@ import string
 
 from PyQt5.QtCore import QSize
 from PyQt5.QtGui import QPainter, QIcon, QPixmap, QDoubleValidator
-from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QMessageBox, QAbstractButton, QPushButton, QGroupBox, QLabel,\
-                            QLineEdit
+from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QMessageBox, QAbstractButton, QPushButton, QGroupBox, QLabel, \
+    QLineEdit, QStyle
 
 # local imports
 import remotecontroller
@@ -165,7 +165,8 @@ class ValueGroupBox(QGroupBox):
         self.writeLine.setPlaceholderText(f"Enter new '{label}'")
         self.writeLine.setValidator(QDoubleValidator())  # we can set a Locale() to correctly process floats
         self.writeLine.setToolTip("Float value")
-        writeButton = QPushButton('Send', self)
+
+        writeButton = QPushButton(QIcon(self.style().standardIcon(QStyle.SP_DialogApplyButton)), 'Send')
         writeButton.clicked.connect(self.writeButtonClicked)
 
         hBox1 = QHBoxLayout()
