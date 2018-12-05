@@ -15,8 +15,8 @@ import ipaddress
 
 from PyQt5.QtCore import QSettings
 from PyQt5.QtGui import QIcon, QIntValidator
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QGroupBox, QRadioButton, QLabel,\
-                            QPushButton, QLineEdit, QSpinBox, QButtonGroup
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QGroupBox, QRadioButton, QLabel, QStyle, \
+    QPushButton, QLineEdit, QSpinBox, QButtonGroup
 
 # local imports
 import miscgraphics
@@ -196,7 +196,8 @@ class SettingsWindow(QWidget):
         graphsVBox.addLayout(graphsHBox2)
 
         # reset to defaults
-        resetSettingsButton = QPushButton("Reset to defaults")
+        resetSettingsButton = QPushButton(QIcon(self.style().standardIcon(QStyle.SP_DialogCancelButton)),
+                                          "Reset to defaults")
         resetSettingsButton.clicked.connect(self.resetSettings)
 
         # get all values for the first time

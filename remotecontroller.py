@@ -369,17 +369,17 @@ snapshot_template = {
 
 
 class _BaseException(Exception):
+    """Basis exception - 'operation' is used by all sub-exceptions"""
 
     def __init__(self, operation):
         super(_BaseException, self).__init__()
         self.operation = operation
 
-    def __str__(self):
-        return f"Invalid operation '{self.operation}'"
-
 
 class RequestInvalidOperationException(_BaseException):
-    pass
+
+    def __str__(self):
+        return f"Invalid operation '{self.operation}'"
 
 
 class ResponseException(_BaseException):
@@ -390,7 +390,7 @@ class ResponseException(_BaseException):
         self.values = values
 
     def __str__(self):
-        return f"RemoteController has responded with error code for operation '{self.operation}' on '{self.thing}', "\
+        return f"RemoteController has responded with error code for operation '{self.operation}' on '{self.thing}', " \
                 "supplied values: " + str(self.values)
 
 
@@ -403,7 +403,7 @@ class ResponseMismatchException(_BaseException):
         self.values = values
 
     def __str__(self):
-        return f"operation '{self.operation}': expected '{self.expected}', got '{self.got}', supplied values: " +\
+        return f"operation '{self.operation}': expected '{self.expected}', got '{self.got}', supplied values: " + \
                str(self.values)
 
 

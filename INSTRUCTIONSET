@@ -1,0 +1,64 @@
+PID controller remote interface instruction set
+
+
+
+Request: 1 byte, MSB to LSB
+
+           _      _ _ _ _      _ _ _    [optional] FLOAT VALUES
+                                                   4 byte each
+        opcode   variable/   reserved
+                  command
+
+
+    opcode
+        0 - read
+        1 - write
+
+
+    variable/command
+        0100 - setpoint
+
+        0101 - Kp
+        0110 - Ki
+        0111 - Kd
+
+        1000 - Ei
+
+        1001 - EpL
+        1010 - EiL
+
+
+        specials (opcode is always 0)
+
+        0000 - stream stop
+        0001 - stream start
+
+        1011 - save to EEPROM
+
+
+
+Response: 1 byte, MSB to LSB
+
+           _      _ _ _ _      _          _ _         [optional] FLOAT VALUES
+                                                                 4 byte each
+        opcode   variable   result     reserved/
+                                      stream prefix
+
+
+    opcode, variable/command
+        see above
+
+
+    result
+        0 - success
+        1 - error
+
+
+    stream prefix
+        01 (so entire response byte is 0x01, then float values follows)
+
+
+
+Notes
+
+    One can define custom commands following specified rules and using vacant values

@@ -348,8 +348,6 @@ class CentralWidget(QWidget):
             miscgraphics.ValueGroupBox('kD', float_fmt=app.settings['pid']['valueFormat'], conn=app.conn)
         ]
 
-        # TODO: draw a scheme of this grid in documentation
-        # https://stackoverflow.com/questions/5909873/how-can-i-pretty-print-ascii-tables-with-python
         for groupBox, yPosition in zip(self.contValGroupBoxes, [0,3,6,9]):
             grid.addWidget(groupBox, yPosition, 0, 3, 2)
 
@@ -376,7 +374,7 @@ class CentralWidget(QWidget):
             hBox.addWidget(averageLabel, alignment=Qt.AlignLeft)
             grid.addLayout(hBox, yPosition, 0, 1, 2)
 
-        grid.addWidget(self.graphs, 0, 2, 14, 4)
+        grid.addWidget(self.graphs, 0, 2, 14, 6)
 
 
     def updateDisplayingValues(self) -> None:
@@ -495,6 +493,8 @@ class MainWindow(QMainWindow):
 
         self.centralWidget = CentralWidget(app=app)
         self.setCentralWidget(self.centralWidget)
+
+        self.statusBar().show()  # can be not visible in online mode otherwise
 
 
     def playpauseGraphs(self) -> None:
@@ -729,7 +729,6 @@ class MainApplication(QApplication):
             self.isOfflineMode = True
             print("Connection lost")
             try:
-                # TODO: notify children instead of such constructions (i.e. let emitted signals propagate)
                 if self.mainWindow.centralWidget.graphs.isRun:
                     self.mainWindow.playpauseGraphs()
                 self.mainWindow.statusBar().addWidget(self.connLostStatusBarLabel)
