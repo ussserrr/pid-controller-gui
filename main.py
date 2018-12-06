@@ -758,7 +758,8 @@ class MainApplication(QApplication):
 
 if __name__ == '__main__':
     """
-    Main entry point
+    Main entry pointposmotrimchtotakoe
+    
     """
 
     multiprocessing.freeze_support()

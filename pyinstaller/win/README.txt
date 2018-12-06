@@ -5,3 +5,6 @@ Make .spec file:
 Build dist:
 
     pyinstaller --clean --noconfirm .\pyinstaller\win\PID_controller_GUI.spec
+
+Notes:
+    Do not use UPX, it may corrupt your executable
