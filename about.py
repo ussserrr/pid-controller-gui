@@ -40,7 +40,7 @@ ABOUT_TEXT = """<!DOCTYPE html>
 
 <p>2016-2018</p>
 
-<p>Repository: <a href="https://github.com/ussserrr/maglev-client">https://github.com/ussserrr/maglev-client</a></p>
+<p>Repository: <a href="https://github.com/ussserrr/pid-controller-gui">https://github.com/ussserrr/pid-controller-gui</a></p>
 
 </body>
 </html>

@@ -1,50 +1,43 @@
-# maglev-client
-Python-based GUI application for controlling PID regulator (see [maglev-ti-rtos](https://github.com/ussserrr/maglev-ti-rtos)).
-![UNIX screenshot](/screenshots/PID_GUI_linux_gamma.png)
+# PID controller GUI
+![screenshot](/screenshots/pid-controller-gui.gi)
 
 ## Features
   - Get and set PID parameters:
     - Setpoint
-    - PID algorithm output value
-    - Kp, Ki and Kd coefficients
-    - Limits of P & I errors
-    - Resetting accumulated I error
-  - Monitor controlled parameter and PID algorithm output via plots (and save them as pictures)
-  - Save PID parameters to the MCU' EEPROM
+    - kP, kI and kD coefficients
+    - Limits of proportional & integral components errors
+    - Reset accumulated integral error
+  - Monitor process variable and controller output through live graphs
+  - Save PID parameters to the controller' non-volatile memory
   - Demo mode: activates when no network connection established
 
+## Overview
+The application is supposed to connects to some kind of bare-metal MCU or OS-based controller that uses a proportional-integral-derivative algorithm as a core to drive some parameter in physical system. PID is a generic efficient-proven method for such tasks, find more about it in topic resources.
+
+It can be used as a general tool to help:
+  - Setup and adjust the PID regulator for the first time
+  - Monitor its stability during a long operation
+  - Diagnose and find issues
+
+Main advantage of the dedicated interface is the ability to establish a connection of any type while not changing the behavior of other logic. For example, current active UDP/IP stack can be replaced by a serial UART protocol and so on. The application does not contain any hard-coded specific definitions that allows to assign them by an end-user.
+
+## Architecture
+Besides modular structure the app also applies multithreaded approach to split resources on different tasks. For example, in communication protocol (described in [INSTRUCTIONSET](/INSTRUCTIONSET)) 2 types of messages are defined: 'normal' and stream. Normal variables/commands are delivering by demand, using request/response semantics. In contrast, stream messages are constantly pouring from the controller so the client should plot them onto graph. Such scene is perfectly lays on the concept of dedicated input listening thread that concurrently runs alongside the main thread and redirect incoming messages according to their type. It is implemented through `multiprocessing` API (processes and pipes).
+
+For detailed description on particular things please refer to in-code documentation.
+
 ## Dependencies
-  - Python 3 (tested Python 3.5+)
-  - matplotlib
+  - Python 3
   - PyQt5
-  - [*PyInstaller*]
+  - PyQtGraph
+  - qdarkstyle (provides dark theme)
+  - *[optional]* PyInstaller (provides packing into bundle)
 
 ## Usage
 Run
 ```sh
 $ python3 main.py
 ```
-After loading you should see IP/port pair request and then main GUI appears.
 
 ## Packing into standalone app
-Performs via [PyInstaller](https://www.pyinstaller.org/). Pick appropriate `.spec` script and run
-```sh
-$ pyinstaller "PID_GUI.spec"
-```
-As in a non-standalone case, you should run the app from terminal to be able to set IP/port and start the GUI.
-Please use sources that lay under `./pyinstaller` folder. They differ only in the way to set paths to icons (see [SO](https://stackoverflow.com/questions/7674790/bundling-data-files-with-pyinstaller-onefile) for more details).
-
-## Notes
-Some notes on app' architecture:
-  - 3 modules:
-    - `main`: executes general logic, renders graphics, interact with a user,
-    - `mcuconn`: holds network connection to the remote MCU,
-    - `miscgraphics`: contains accessory graphic (matplotlib' `Graph`, `PicButton`, etc.);
-  - Version naming in order of the Greek alphabet;
-  - Main window `MainWindow` inherits `QMainWindow` and includes **menu bar**, **status bar**, **toolbar** and also `FormWidget(QWidget)` containing all other elements;
-  - All elements are grouped in several vertical and horizontals layouts. In turn, they are grouped together in bigger boxes. Global layout of the whole widget - `QGridLayout`;
-  - Redrawing of plots is performed by setting `None` as a parent of `Graph` and repeating of drawing.
-
-## Copyright
-All rights to icons belong to icons' author from https://www.flaticon.com/. All third-party components belong to their authors.
-(C) Andrey Chufyrev, 2018.
+It is possible to bundle the application into a standalone executable using [PyInstaller](https://www.pyinstaller.org/). See respective README in [pyinstaller](/pyinstaller) folder.
