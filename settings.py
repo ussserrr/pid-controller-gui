@@ -19,6 +19,7 @@ from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QGro
     QPushButton, QLineEdit, QSpinBox, QButtonGroup
 
 # local imports
+import util
 import miscgraphics
 
 
@@ -121,7 +122,7 @@ class SettingsWindow(QWidget):
         self.app = app
 
         self.setWindowTitle('Settings')
-        self.setWindowIcon(QIcon('img/settings.png'))
+        self.setWindowIcon(QIcon(util.resource_path('img/settings.png')))
 
         #
         # Network section
@@ -194,6 +195,7 @@ class SettingsWindow(QWidget):
 
         graphsVBox.addLayout(graphsHBox1)
         graphsVBox.addLayout(graphsHBox2)
+
 
         # reset to defaults
         resetSettingsButton = QPushButton(QIcon(self.style().standardIcon(QStyle.SP_DialogCancelButton)),

@@ -18,6 +18,7 @@ from PyQt5.QtWidgets import QWidget, QGridLayout, QHBoxLayout, QVBoxLayout, QGro
 from PyQt5.QtGui import QIcon
 
 # local imports
+import util
 import remotecontroller
 
 
@@ -44,7 +45,7 @@ class ErrorsSettingsWindow(QWidget):
         self.app = app
 
         self.setWindowTitle("PID errors settings")
-        self.setWindowIcon(QIcon('img/set_errors.png'))
+        self.setWindowIcon(QIcon(util.resource_path('img/set_errors.png')))
 
         grid = QGridLayout()
         self.setLayout(grid)

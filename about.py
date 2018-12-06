@@ -21,6 +21,9 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QTabWidget, QLabel, QTextBrowser, QPushButton, QStyle
 from PyQt5.QtGui import QIcon, QPixmap
 
+# local imports
+import util
+
 
 
 LOGO_SIZE = 96
@@ -101,7 +104,7 @@ class AboutWindow(QTabWidget):
         super(AboutWindow, self).__init__(parent)
 
         self.setWindowTitle("Info & About")
-        self.setWindowIcon(QIcon('img/info.png'))
+        self.setWindowIcon(QIcon(util.resource_path('img/info.png')))
 
         self.aboutTab = QWidget()
         self.sysTab = QWidget()
@@ -124,7 +127,7 @@ class AboutWindow(QTabWidget):
         self.aboutTab.setLayout(layout)
 
         # prepare logo view: create pixmap, scale it using nicer method
-        iconPixmap = QPixmap('img/icon.png').scaledToWidth(LOGO_SIZE, Qt.SmoothTransformation)
+        iconPixmap = QPixmap(util.resource_path('img/icon.png')).scaledToWidth(LOGO_SIZE, Qt.SmoothTransformation)
         iconLabel = QLabel()  # QLabel is used to store the pixmap
         iconLabel.setPixmap(iconPixmap)
         iconLabel.setAlignment(Qt.AlignCenter)
