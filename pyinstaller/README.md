@@ -1,6 +1,15 @@
 # PyInstaller configuration
-Packing into standalone app performs via [PyInstaller](https://www.pyinstaller.org/). Pick appropriate `.spec` script and run
-```sh
-$ pyinstaller "PID_GUI.spec"
-```
-Please, prefer these sources, to be sure that all icons will be packed properly. They differ only in the way to set paths to icons (see [SO](https://stackoverflow.com/questions/7674790/bundling-data-files-with-pyinstaller-onefile) for more details).
+
+Packing into standalone application is performing via [PyInstaller](https://www.pyinstaller.org/):
+
+ 1. Pick an appropriate `.spec` file
+ 2. Correct user-specific options (path)
+ 3. Place it in the repository' root
+ 4. Run the command from README file
+
+You can also generate `.spec` file by yourself using template command string from README file. It should be useful if
+
+ - you want custom distribution options
+ - new major version of PyInstaller has been released that uses incompatible format of `.spec` files.
+
+Command-line options are more general to use for PyInstaller.

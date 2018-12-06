@@ -1,6 +1,6 @@
 //
 //  commandmanager.h
-//  pid-gui-server
+//  pid-controller-server
 //
 //  Created by Andrey Chufyrev on 18.11.2018.
 //  Copyright © 2018 Andrey Chufyrev. All rights reserved.

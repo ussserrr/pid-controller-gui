@@ -1,6 +1,6 @@
 //
 //  main.c
-//  pid-gui-server
+//  pid-controller-server
 //
 //  Created by Andrey Chufyrev on 18.11.2018.
 //  Copyright © 2018 Andrey Chufyrev and authors of corresponding code. All rights reserved.
