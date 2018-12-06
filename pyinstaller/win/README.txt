@@ -1,0 +1,7 @@
+Make .spec file:
+
+    pyi-makespec main.py --onefile --name PID_controller_GUI --add-data .\img\eeprom.png;.\img ... --add-data .\defaultSettings.json;.\ --windowed --icon .\pyinstaller\win\icon.ico
+
+Build dist:
+
+    pyinstaller --clean --noconfirm .\pyinstaller\win\PID_controller_GUI.spec
