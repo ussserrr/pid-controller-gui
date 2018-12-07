@@ -3,8 +3,8 @@
 block_cipher = None
 
 
-a = Analysis(['main.py'],
-             pathex=['/Users/chufyrev/PycharmProjects/pid-gui'],
+a = Analysis(['./pid-controller-gui/main.py'],
+             pathex=['/Users/chufyrev/PycharmProjects/pid-gui/pid-controller-gui'],
              binaries=[],
              datas=[('./img/eeprom.png', './img'),
                     ('./img/error.png', './img'),

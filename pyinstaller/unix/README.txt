@@ -4,4 +4,4 @@ Make .spec file:
 
 Build dist:
 
-    pyinstaller --clean --noconfirm ./pyinstaller/unix/PID_controller_GUI.spec
+    pyinstaller --clean --noconfirm PID_controller_GUI.spec

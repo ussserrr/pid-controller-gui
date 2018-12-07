@@ -30,7 +30,7 @@ class Settings(dict):
     interface to QSettings via 'persistentStorage' property
     """
 
-    def __init__(self, defaults: str='defaultSettings.json'):
+    def __init__(self, defaults: str='../defaultSettings.json'):
         """
         Settings constructor. Automatically retrieving settings from the persistent storage if they are present
 
@@ -122,7 +122,7 @@ class SettingsWindow(QWidget):
         self.app = app
 
         self.setWindowTitle('Settings')
-        self.setWindowIcon(QIcon(util.resource_path('img/settings.png')))
+        self.setWindowIcon(QIcon(util.resource_path('../img/settings.png')))
 
         #
         # Network section

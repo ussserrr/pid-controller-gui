@@ -45,7 +45,7 @@ class ErrorsSettingsWindow(QWidget):
         self.app = app
 
         self.setWindowTitle("PID errors settings")
-        self.setWindowIcon(QIcon(util.resource_path('img/set_errors.png')))
+        self.setWindowIcon(QIcon(util.resource_path('../img/set_errors.png')))
 
         grid = QGridLayout()
         self.setLayout(grid)

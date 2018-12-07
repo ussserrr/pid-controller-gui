@@ -116,7 +116,7 @@ class MessageWindow(QMessageBox):
         super(MessageWindow, self).__init__(parent)
 
         self.setWindowTitle(status)
-        self.setWindowIcon(QIcon(util.resource_path('img/error.png')))
+        self.setWindowIcon(QIcon(util.resource_path('../img/error.png')))
 
         if status == 'Info':
             self.setIcon(QMessageBox.Information)
@@ -159,9 +159,9 @@ class ValueGroupBox(QGroupBox):
         self.valLabel = QLabel()
         self.refreshVal()
 
-        refreshButton = PicButton(util.resource_path('img/refresh.png'),
-                                  util.resource_path('img/refresh_hover.png'),
-                                  util.resource_path('img/refresh_pressed.png'))
+        refreshButton = PicButton(util.resource_path('../img/refresh.png'),
+                                  util.resource_path('../img/refresh_hover.png'),
+                                  util.resource_path('../img/refresh_pressed.png'))
         refreshButton.clicked.connect(self.refreshVal)
 
         self.writeLine = QLineEdit()
@@ -231,9 +231,9 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = QWidget()
 
-    button = PicButton(util.resource_path('img/refresh.png'),
-                       util.resource_path('img/refresh_hover.png'),
-                       util.resource_path('img/refresh_pressed.png'))
+    button = PicButton(util.resource_path('../img/refresh.png'),
+                       util.resource_path('../img/refresh_hover.png'),
+                       util.resource_path('../img/refresh_pressed.png'))
     button.clicked.connect(lambda: print("PicButton has been clicked"))
 
     valueBox = ValueGroupBox("My value")

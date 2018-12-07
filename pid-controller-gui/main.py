@@ -416,24 +416,24 @@ class MainWindow(QMainWindow):
         self.app = app
 
         self.setWindowTitle(QCoreApplication.applicationName())
-        self.setWindowIcon(QIcon(util.resource_path('img/icon.png')))
+        self.setWindowIcon(QIcon(util.resource_path('../img/icon.png')))
 
 
         #
         # App Toolbar section
         #
-        exitAction = QAction(QIcon(util.resource_path('img/exit.png')), 'Exit', self)
+        exitAction = QAction(QIcon(util.resource_path('../img/exit.png')), 'Exit', self)
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip("[Ctrl+Q] Exit application")
         exitAction.triggered.connect(self.app.quit)
 
-        aboutAction = QAction(QIcon(util.resource_path('img/info.png')), 'About', self)  # see about.py
+        aboutAction = QAction(QIcon(util.resource_path('../img/info.png')), 'About', self)  # see about.py
         aboutAction.setShortcut('Ctrl+I')
         aboutAction.setStatusTip("[Ctrl+I] Application Info & About")
         self.aboutWindow = about.AboutWindow()
         aboutAction.triggered.connect(self.aboutWindow.show)
 
-        settingsAction = QAction(QIcon(util.resource_path('img/settings.png')), 'Settings', self)  # see settings.py
+        settingsAction = QAction(QIcon(util.resource_path('../img/settings.png')), 'Settings', self)  # see settings.py
         settingsAction.setShortcut('Ctrl+P')
         settingsAction.setStatusTip("[Ctrl+P] Application Settings")
         self.settingsWindow = settings.SettingsWindow(app=app)
@@ -449,18 +449,18 @@ class MainWindow(QMainWindow):
         # Controller Toolbar section
         #
         # see errorssettings.py
-        errorsSettingsAction = QAction(QIcon(util.resource_path('img/set_errors.png')), 'Errors limits', self)
+        errorsSettingsAction = QAction(QIcon(util.resource_path('../img/set_errors.png')), 'Errors limits', self)
         errorsSettingsAction.setShortcut('E')
         errorsSettingsAction.setStatusTip("[E] Set values of errors limits")
         self.errorsSettingsWindow = errorssettings.ErrorsSettingsWindow(app=app)
         errorsSettingsAction.triggered.connect(self.errorsSettingsWindow.show)
 
-        restoreValuesAction = QAction(QIcon(util.resource_path('img/restore.png')), 'Restore controller', self)
+        restoreValuesAction = QAction(QIcon(util.resource_path('../img/restore.png')), 'Restore controller', self)
         restoreValuesAction.setShortcut('R')
         restoreValuesAction.setStatusTip("[R] Restore all controller parameters to values at the program start time")
         restoreValuesAction.triggered.connect(self.restoreContValues)
 
-        saveToEEPROMAction = QAction(QIcon(util.resource_path('img/eeprom.png')), 'Save to EEPROM', self)
+        saveToEEPROMAction = QAction(QIcon(util.resource_path('../img/eeprom.png')), 'Save to EEPROM', self)
         saveToEEPROMAction.setShortcut('S')
         saveToEEPROMAction.setStatusTip("[S] Save current controller configuration to EEPROM")
         saveToEEPROMAction.triggered.connect(self.saveToEEPROM)
@@ -474,7 +474,7 @@ class MainWindow(QMainWindow):
         #
         # Graphs Toolbar section
         #
-        playpauseAction = QAction(QIcon(util.resource_path('img/play_pause.png')), 'Play/Pause', self)
+        playpauseAction = QAction(QIcon(util.resource_path('../img/play_pause.png')), 'Play/Pause', self)
         playpauseAction.setShortcut('P')
         playpauseAction.setStatusTip("[P] Play/pause graphs")
         playpauseAction.triggered.connect(self.playpauseGraphs)
@@ -641,7 +641,7 @@ class MainApplication(QApplication):
 
 
         # settings [customized] dictionary
-        self.settings = settings.Settings(defaults=util.resource_path('defaultSettings.json'))
+        self.settings = settings.Settings(defaults=util.resource_path('../defaultSettings.json'))
 
         if self.settings['appearance']['theme'] == 'dark':
             # TODO: warns itself as a deprecated method though no suitable alternative has been suggested
@@ -751,7 +751,7 @@ class MainApplication(QApplication):
                 print("Too small timeout")
                 miscgraphics.MessageWindow("It seems like the connection is present but specified read/write timeouts "
                                            "is too small. Consider to fix your network or edit timeouts to match your "
-                                           f"timings (see '{remotecontroller.__name__}.py' module).", status='Warning')
+                                           f"timings (see '{ remotecontroller.__name__}.py' module).", status='Warning')
 
 
 

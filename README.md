@@ -39,5 +39,7 @@ Run
 $ python3 main.py
 ```
 
+Default settings are located in `defaultSettings.json` file and currently available only in non-bundled mode. Different timeouts are placed directly in modules' code and so also can be edited only programmatically.
+
 ## Packing into standalone app
 It is possible to bundle the application into a standalone executable using [PyInstaller](https://www.pyinstaller.org/). See respective README in [pyinstaller](/pyinstaller) folder.
