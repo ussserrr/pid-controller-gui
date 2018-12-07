@@ -7,7 +7,7 @@
     - kP, kI and kD coefficients
     - Limits of proportional & integral components errors
     - Reset accumulated integral error
-  - Monitor process variable and controller output through live graphs
+  - Monitor process variable and controller output through live graphs @ 60 FPS
   - Save PID parameters to the controller' non-volatile memory
   - Demo mode: activates when no network connection established
 
