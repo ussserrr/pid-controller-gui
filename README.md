@@ -1,5 +1,5 @@
 # PID controller GUI
-![screenshot](/screenshots/pid-controller-gui.gi)
+![screenshot](/screenshots/pid-controller-gui.gif)
 
 ## Features
   - Get and set PID parameters:
