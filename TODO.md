@@ -18,7 +18,7 @@ RemoteController
     +---- Stream
     |
     +---- Signal(QObject)    no more present in the class (zero external
-                             dependencies, only Python library
+                             dependencies, only Python library)
 ```
 - [ ] Pack response, request, result etc. into corresponding classes, not dictionaries
 - [ ] Add logging to easily trace the execution flow (several verbosity levels)

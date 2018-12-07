@@ -2,5 +2,7 @@ PID controller GUI changelog:
 
     ver. 2.0 (07.12.18):
         - New: live graphs at 60 FPS (migrate from matplotlib to PyQtGraph)
-        - Fixed:
-        - Changed:
+        - New: fully rethought RemoteController module (previously MCUconn) (asynchronous operations etc.)
+        - New: efficient instruction set
+        - New: C-written simulator (pid-controller-server)
+        - Changed: less entangled architecture
