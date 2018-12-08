@@ -758,11 +758,10 @@ class MainApplication(QApplication):
 
 if __name__ == '__main__':
     """
-    Main entry pointposmotrimchtotakoe
-    
+    Main entry point
     """
 
-    multiprocessing.freeze_support()
+    multiprocessing.freeze_support()  # Windows support
 
     QCoreApplication.setOrganizationName("Andrey Chufyrev")
     QCoreApplication.setApplicationName("PID controller GUI")

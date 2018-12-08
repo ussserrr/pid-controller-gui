@@ -56,7 +56,8 @@ dict snapshot_template
 exception _BaseExceptions
 exception RequestInvalidOperationException
 exception ResponseException
-exception ResponseMismatchException
+exception ResponseVarCmdMismatchException
+exception ResponseOperationMismatchException
 exception RequestKeyException
     module's exceptions to raise in case of error
 
@@ -394,16 +395,29 @@ class ResponseException(_BaseException):
                 "supplied values: " + str(self.values)
 
 
-class ResponseMismatchException(_BaseException):
+class ResponseVarCmdMismatchException(_BaseException):
 
     def __init__(self, operation, got, expected, values):
-        super(ResponseMismatchException, self).__init__(operation)
+        super(ResponseVarCmdMismatchException, self).__init__(operation)
         self.got = got
         self.expected = expected
         self.values = values
 
     def __str__(self):
         return f"operation '{self.operation}': expected '{self.expected}', got '{self.got}', supplied values: " + \
+               str(self.values)
+
+
+class ResponseOperationMismatchException(_BaseException):
+
+    def __init__(self, op_got, op_expected, thing, values):
+        super(ResponseOperationMismatchException, self).__init__(op_expected)
+        self.op_got = op_got
+        self.thing = thing
+        self.values = values
+
+    def __str__(self):
+        return f"'{self.thing}': requested '{self.operation}', got '{self.op_got}', supplied values: " + \
                str(self.values)
 
 
@@ -499,12 +513,13 @@ class RemoteController:
 
 
     @staticmethod
-    def _parse_response(what: str, response: dict=None):
+    def _parse_response(operation: str, what: str, response: dict=None):
         """
         Additional wrapper around the _parse_response() function performing more deep inspection of what we got from
         the controller and what we should return to the caller in accordance to parsed data. Raises some exceptions
         in case of detected errors
 
+        :param operation: string representing an operation ('read' or 'write')
         :param what: string representing expected RemoteController' variable or command
         :param response: response dictionary (_parse_response() output)
         :return: int or [int, int] in accordance with the requested data
@@ -515,8 +530,11 @@ class RemoteController:
 
             if response['result'] == 'error':
                 raise ResponseException(response['opcode'], response['var_cmd'], response['values'])
+            if response['opcode'] != operation:
+                raise ResponseOperationMismatchException(response['opcode'], operation, response['var_cmd'],
+                                                         response['values'])
             if response['var_cmd'] != what:
-                raise ResponseMismatchException(response['opcode'], response['var_cmd'], what, response['values'])
+                raise ResponseVarCmdMismatchException(response['opcode'], response['var_cmd'], what, response['values'])
 
             if response['opcode'] == 'read':
                 if response['var_cmd'] in ['setpoint', 'kP', 'kI', 'kD', 'err_I']:
@@ -588,11 +606,11 @@ class RemoteController:
                 self._is_offline_mode = True
                 if self.conn_lost_signal is not None:
                     self.conn_lost_signal.emit()
-                return self._parse_response(what)
-            return self._parse_response(what, response=response)
+                return self._parse_response('read', what)
+            return self._parse_response('read', what, response=response)
 
         else:
-            return self._parse_response(what)
+            return self._parse_response('read', what)
 
 
     def write(self, what: str, *values) -> int:
@@ -617,7 +635,7 @@ class RemoteController:
                 if self.conn_lost_signal is not None:
                     self.conn_lost_signal.emit()
                 return result['error']
-            return self._parse_response(what, response)
+            return self._parse_response('write', what, response)
 
         else:
             return result['ok']
