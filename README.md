@@ -36,10 +36,13 @@ For detailed description on particular things please refer to in-code documentat
 ## Usage
 Run
 ```sh
-$ python3 main.py
+pid-controller-gui/pid-controller-gui $ python3 main.py
 ```
 
 Default settings are located in `defaultSettings.json` file and currently available only in non-bundled mode. Different timeouts are placed directly in modules' code and so also can be edited only programmatically.
 
 ## Packing into standalone app
 It is possible to bundle the application into a standalone executable using [PyInstaller](https://www.pyinstaller.org/). See respective README in [pyinstaller](/pyinstaller) folder.
+
+## UML
+You can find a sketch diagram in [uml](/uml) folder (created in [draw.io](https://www.draw.io/)).
