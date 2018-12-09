@@ -26,6 +26,9 @@ Besides modular structure the app also applies multithreaded approach to split r
 
 For detailed description on particular things please refer to in-code documentation.
 
+## Simulator
+For debug and development purposes the PID regulator simulator has been created. It is a C-written UDP server implementing the same instruction set interface so it acting as a real remote controller. See [pid-controller-server](/pid-controller-server) for more information.
+
 ## Dependencies
   - Python 3
   - PyQt5
