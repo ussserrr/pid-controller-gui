@@ -102,3 +102,9 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# macOS-specific
+.DS_Store
+
+# Repository-specific
+pid-controller-server
