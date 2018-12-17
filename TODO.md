@@ -1,4 +1,4 @@
-# TODO list
+# pid-controller-gui
 
 - [ ] Delimit connection-related stuff from the PID-related (e.g. `snapshots`, `reset_pid_error(err)` should be in a dedicated class). There is a rough scheme of the improved RemoteController class:
 ```text
@@ -13,7 +13,7 @@ RemoteController
     |         snapshots
     |         take_snapshot()
     |         restore_snapshot(snapshot)
-    |         
+    |
     |
     +---- Stream
     |
@@ -25,3 +25,8 @@ RemoteController
 - [ ] Apply settings on-the-fly (not requiring a reboot)
 - [ ] Make QT signals propagate from children to parent and vice versa (more ease and transparent code)
 - [ ] Get rid of entangled logic of handling connection and its breaks
+
+
+# pid-controller-server
+
+- [ ] Store the connection information on the first communication to eliminate the need in determination of the client's IP on every incoming request (reset them after specified inactivity timeout) (maybe this is closer to TCP nature...)
