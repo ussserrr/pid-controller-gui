@@ -435,16 +435,6 @@ class ResponseOperationMismatchException(_BaseException):
                str(self.values)
 
 
-class ResponseNoSuppliedValuesException(_BaseException):
-
-    def __init__(self, operation, thing):
-        super(ResponseNoSuppliedValuesException, self).__init__(operation)
-        self.thing = thing
-
-    def __str__(self):
-        return f"request was '{self.operation}' for '{self.thing}' but no values were supplied in response"
-
-
 
 class RemoteController:
     """
@@ -552,12 +542,8 @@ class RemoteController:
 
             if response['opcode'] == 'read':
                 if response['var_cmd'] in ['setpoint', 'kP', 'kI', 'kD', 'err_I']:
-                    if response['values'] == [] or response['values'] == [0, 0]:
-                        raise ResponseNoSuppliedValuesException(response['opcode'], response['var_cmd'])
                     return response['values'][0]
                 elif response['var_cmd'] in ['err_P_limits', 'err_I_limits']:
-                    if response['values'] == [] or response['values'] == [0, 0]:
-                        raise ResponseNoSuppliedValuesException(response['opcode'], response['var_cmd'])
                     return response['values']
                 elif response['var_cmd'] in ['save_to_eeprom', 'stream_start', 'stream_stop']:
                     return result[response['result']]  # 'ok'

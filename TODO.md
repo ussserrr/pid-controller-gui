@@ -25,6 +25,7 @@ RemoteController
 - [ ] Apply settings on-the-fly (not requiring a reboot)
 - [ ] Make QT signals propagate from children to parent and vice versa (more ease and transparent code)
 - [ ] Get rid of entangled logic of handling connection and its breaks
+- [ ] Display the lag (in points) of plots instead of bullet mark
 
 
 # pid-controller-server
