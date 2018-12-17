@@ -129,6 +129,7 @@ opcode = {
 }
 opcode_swapped = {value: key for key, value in opcode.items()}
 
+_VAR_CMD_STREAM = 65535
 var_cmd = {
     # variables
     'setpoint': 0b0100,
@@ -146,7 +147,10 @@ var_cmd = {
     'stream_start': 0b0001,
     'stream_stop': 0b0000,
 
-    'save_to_eeprom': 0b1011
+    'save_to_eeprom': 0b1011,
+
+    # stream
+    'stream': _VAR_CMD_STREAM
 }
 var_cmd_swapped = {value: key for key, value in var_cmd.items()}
 
@@ -198,9 +202,9 @@ def _parse_response(response_buf: bytearray) -> dict:
 
     if response_byte.stream:
         response_dict = {
-            'opcode': 'read',
-            'var_cmd': 'stream',
-            'result': 'ok'
+            'opcode': opcode['read'],
+            'var_cmd': var_cmd['stream'],
+            'result': result['ok']
         }
     else:
         response_dict = {
@@ -325,7 +329,7 @@ def _thread_input_handler(
                     sys.exit()
 
                 response = _parse_response(payload)
-                if response['var_cmd'] == 'stream':
+                if response['var_cmd'] == var_cmd['stream']:
                     if stream_accept:
                         stream_pipe_tx.send(response['values'])
                         stream_msg_cnt += 1
@@ -383,6 +387,16 @@ class RequestInvalidOperationException(_BaseException):
         return f"Invalid operation '{self.operation}'"
 
 
+class RequestKeyException(_BaseException):
+
+    def __init__(self, operation, key):
+        super(RequestKeyException, self).__init__(operation)
+        self.key = key
+
+    def __str__(self):
+        return f"Invalid key '{self.key}' for operation '{self.operation}'"
+
+
 class ResponseException(_BaseException):
 
     def __init__(self, operation, thing, values):
@@ -421,14 +435,14 @@ class ResponseOperationMismatchException(_BaseException):
                str(self.values)
 
 
-class RequestKeyException(_BaseException):
+class ResponseNoSuppliedValuesException(_BaseException):
 
-    def __init__(self, operation, key):
-        super(RequestKeyException, self).__init__(operation)
-        self.key = key
+    def __init__(self, operation, thing):
+        super(ResponseNoSuppliedValuesException, self).__init__(operation)
+        self.thing = thing
 
     def __str__(self):
-        return f"Invalid key '{self.key}' for operation '{self.operation}'"
+        return f"request was '{self.operation}' for '{self.thing}' but no values were supplied in response"
 
 
 
@@ -538,8 +552,12 @@ class RemoteController:
 
             if response['opcode'] == 'read':
                 if response['var_cmd'] in ['setpoint', 'kP', 'kI', 'kD', 'err_I']:
+                    if response['values'] == [] or response['values'] == [0, 0]:
+                        raise ResponseNoSuppliedValuesException(response['opcode'], response['var_cmd'])
                     return response['values'][0]
                 elif response['var_cmd'] in ['err_P_limits', 'err_I_limits']:
+                    if response['values'] == [] or response['values'] == [0, 0]:
+                        raise ResponseNoSuppliedValuesException(response['opcode'], response['var_cmd'])
                     return response['values']
                 elif response['var_cmd'] in ['save_to_eeprom', 'stream_start', 'stream_stop']:
                     return result[response['result']]  # 'ok'
